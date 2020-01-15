@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+SLEEP_TIME=$1
+
+if [ -z "$SLEEP_TIME" ]
+  then
+      echo "Must supply sleep time"
+      exit 1
+fi
+
+START_TIME=`date +'%s'`
+
+echo "Will sleep $SLEEP_TIME seconds at $START_TIME" >&2
+
+sleep $SLEEP_TIME
+
+END_TIME=`date +'%s'`
+
+echo "Finished sleeping $SLEEP_TIME seconds" >&2
+
+jq -n --arg START_TIME $START_TIME \
+   --arg END_TIME $END_TIME \
+   --arg SLEEP_TIME $SLEEP_TIME \
+   '{status: "success", start: ($START_TIME)|tonumber, end: $END_TIME|tonumber, sleep: $SLEEP_TIME|tonumber}' 
+
+
+
+

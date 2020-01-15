@@ -39,5 +39,8 @@ setup(
     },
     install_requires=requires,
     entry_points={
-    }
+    },
+    scripts=[
+        'bin/mocks/nti_environments_managment_mock_init.sh'
+    ]
 )
