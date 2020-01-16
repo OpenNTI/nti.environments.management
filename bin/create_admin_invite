@@ -1,0 +1,12 @@
+#!/bin/bash
+
+pod=$1
+adminEmail=$2
+siteHostname=$3
+
+invite=$(podman exec $pod-dataserver /home/ntiuser/buildout/bin/nti_invite_user "$adminEmail" "$adminEmail" "$siteHostname" --admin 2>/dev/null)
+ret=$?
+if [ $ret == 0 ]
+then
+    echo "$invite" | sed -e "s|$pod|$siteHostname|"
+fi

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+pod=$1
+
+source /etc/nti/container_versions
+
+podroot=/opt/pods/$pod
+podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown
+for container in "$pod-web-service $pod-solr $pod-haproxy $pod-haproxy-exporter $pod-nginx $pod-redis $pod-statsd-exporter $pod-node-exporter $pod-rsyslog $pod-splunk"
+do
+    podman stop $container
+done

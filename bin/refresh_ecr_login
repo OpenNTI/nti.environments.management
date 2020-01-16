@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cmd=$(aws --profile dev ecr get-login --no-include-email | sed -e "s|docker|podman|")
+exec $cmd
