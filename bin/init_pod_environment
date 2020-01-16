@@ -19,7 +19,6 @@ if [ ! -e $userfile ]
 then
     #Check and see if the user exists
     t0=$(aws iam --profile legacy list-users --output json | jq ".Users[] | select(.UserName==\"$pod\")")
-    echo "$t0"
     if [ -z "$t0" ]
     then
         aws iam --profile legacy create-user --user-name $pod
