@@ -2,11 +2,38 @@
 
 pod=$1
 
-source /etc/nti/container_versions
+CONTAINERS="$pod-web-service
+$pod-solr $pod-haproxy
+$pod-haproxy-exporter
+$pod-nginx
+$pod-redis
+$pod-statsd-exporter
+$pod-node-exporter
+$pod-rsyslog
+$pod-splunk"
 
-podroot=/opt/pods/$pod
-podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown
-for container in "$pod-web-service $pod-solr $pod-haproxy $pod-haproxy-exporter $pod-nginx $pod-redis $pod-statsd-exporter $pod-node-exporter $pod-rsyslog $pod-splunk"
+podman container exists $pod-dataserver
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+    podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown
+fi
+
+for container in $CONTAINERS
 do
-    podman stop $container
+    podman container exists $container
+    ret=$?
+    if [ "$ret" -eq 0 ]
+    then
+        podman stop $container
+    fi
+done
+
+podman container exists $pod-dataserver
+ret=$?
+until [ "$ret" -eq 1 ]
+do
+    sleep 1
+    podman container exists $pod-dataserver
+    ret=$?
 done
