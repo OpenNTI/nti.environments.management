@@ -1,0 +1,19 @@
+#!/bin/bash
+
+pod=$1
+podroot=/opt/pods/$pod
+
+source /usr/local/lib/nti/nti-container-functions
+
+podman pod exists $pod
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+    stop_pod_environment $pod
+    remove_CNAME $pod
+    podman pod stop $pod > /dev/null
+    podman pod rm $pod > /dev/null
+    fstrim $podroot
+    umount $podroot
+    rmdir $podroot
+fi
