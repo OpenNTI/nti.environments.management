@@ -29,9 +29,13 @@ from kombu import binding
 from kombu import Exchange
 from kombu import Queue
 
+import functools
+
 import random
 
-import functools
+from zope import interface
+
+from .interfaces import ICeleryApp
 
 # We need to trick Celery into supporting rediss:// URLs which is how redis-py
 # signals that you should use Redis with TLS.
@@ -61,11 +65,13 @@ def _maybe_set(settings, name, envvar, coercer=None, default=None):
     elif default is not None:
         settings.setdefault(name, default)
 
+@interface.implementer(ICeleryApp)    
 class Celery(_Celery):
 
     def task(self, *args, **opts):
         opts.setdefault('shared', False)
         return super(Celery, self).task(*args, **opts)
+
 
 class Task(_Task):
     pass
@@ -104,7 +110,7 @@ def configure_celery(name='nti.environments.management', settings=None):
         if "region" in parsed_query:
             broker_transport_options["region"] = parsed_query["region"][0]
 
-    app = _Celery(name, autofinalize=False, set_as_current=False)
+    app = Celery(name, autofinalize=False, set_as_current=False)
 
     app.conf.update(
         accept_content=["json", "msgpack"],
@@ -127,5 +133,5 @@ def register_tasks(app):
     TODO while convenient, this probably isn't the proper place
     or time to do this.
     """
-    from .envsetup import setup_site
-    app.task(bind=True, name='init_env')(setup_site)
+    from .envsetup import SetupTask
+    SetupTask.bind(app)

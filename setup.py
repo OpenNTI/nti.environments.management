@@ -9,7 +9,12 @@ with open(os.path.join(here, 'CHANGES.txt')) as f:
     CHANGES = f.read()
 
 requires = [
-    'celery[redis,sqlalchemy]'
+    'celery[redis,sqlalchemy]',
+    'zope.interface',
+    'zope.component',
+    'nti.schema',
+    'zope.dottedname',
+    'zope.configuration'
 ]
 
 tests_require = []
