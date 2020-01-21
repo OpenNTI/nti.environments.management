@@ -14,6 +14,10 @@ from zope.configuration import xmlconfig
 
 from zope.dottedname import resolve as dottedname
 
+# TODO the worker loads a module for it's setup
+# So we load the zcml we want here. How can we make sure this
+# only happens in the context of spinning up the worker?
+# Doing it at import time is really nasty....
 setHooks()
 context = config.ConfigurationMachine()
 xmlconfig.registerCommonDirectives(context)

@@ -123,15 +123,7 @@ class SetupEnvironmentTask(object):
         return group(ha, dns, prov)()
 
 
-def main():
-    setHooks()
-    context = config.ConfigurationMachine()
-    xmlconfig.registerCommonDirectives(context)
-
-    xmlconfig.file('configure.zcml',
-                   context=context,
-                   package=dottedname.resolve('nti.environments.management'))
-    
+def main():    
     from .worker import app
     
     parser = argparse.ArgumentParser()
