@@ -14,7 +14,8 @@ requires = [
     'zope.component',
     'nti.schema',
     'zope.dottedname',
-    'zope.configuration'
+    'zope.configuration',
+    'dnspython'
 ]
 
 tests_require = []

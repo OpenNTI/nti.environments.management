@@ -14,7 +14,7 @@
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IHaproxyBackendTask"/>
 
-	<adapter factory=".tasks.MockAddDNSMappingTask"	
+	<adapter factory=".dns.MockAddDNSMappingTask"	
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IDNSMappingTask"/>
 
