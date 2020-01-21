@@ -45,6 +45,9 @@ setup(
         'docs': docs_require,
         'flower': ['flower']
     },
+    package_data={
+        '': ['*.ini','*.mako', '*.zcml'],
+    },
     install_requires=requires,
     entry_points={
     },
