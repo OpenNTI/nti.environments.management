@@ -1,0 +1,10 @@
+#!/bin/bash
+
+pod=$1
+sitehostname=$2
+
+haproxypod=ssl1-aspin
+haproxyroot=/opt/pods/$haproxypod/etc/haproxy/
+
+sed -e "s|\$SITE_ID|$pod|g" $haproxyroot/tmpl/site.cfg.in > $haproxyroot/10-$pod.cfg
+echo "$sitehostname $pod"_backend >> $haproxyroot/maps/env.map
