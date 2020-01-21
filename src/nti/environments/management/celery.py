@@ -21,6 +21,7 @@ import celery
 import celery
 import celery.app.backends
 import celery.backends.redis
+
 from celery import Celery as _Celery
 from celery import Task as _Task
 from celery._state import connect_on_app_finalize
@@ -33,9 +34,19 @@ import functools
 
 import random
 
+from zope.component.hooks import setHooks
+
+from zope.configuration import config
+from zope.configuration import xmlconfig
+
+from zope.dottedname import resolve as dottedname
+
+from zope.component import getGlobalSiteManager
+
 from zope import interface
 
 from .interfaces import ICeleryApp
+from .interfaces import IApplicationTask
 
 # We need to trick Celery into supporting rediss:// URLs which is how redis-py
 # signals that you should use Redis with TLS.
@@ -76,7 +87,7 @@ class Celery(_Celery):
 class Task(_Task):
     pass
 
-def configure_celery(name='nti.environments.management', settings=None):
+def configure_celery(name='nti.environments.management', settings=None, loader=None):
     """
     Setup a celery instance with the given name and settings.
     Settings specified in the environment are preferred to those in
@@ -116,7 +127,7 @@ def configure_celery(name='nti.environments.management', settings=None):
         accept_content=["json", "msgpack"],
         broker_url=broker_url,
         broker_transport_options=broker_transport_options,
-        backend_url=settings["celery.backend_url"],
+        result_backend=settings["celery.backend_url"],
         task_serializer="json",
         worker_disable_rate_limits=True
     )
@@ -133,5 +144,13 @@ def register_tasks(app):
     TODO while convenient, this probably isn't the proper place
     or time to do this.
     """
-    from .envsetup import SetupTask
-    SetupTask.bind(app)
+
+    # Look for any adapter registration that implements IApplicationTask
+    # This is probably really slow, but it allows us to not have to switch the
+    # mocks in and out here, we rely on the zcml implementations
+    gsm = getGlobalSiteManager()
+    for adapter in gsm.registeredAdapters():
+        if adapter.provided.isOrExtends(IApplicationTask) \
+           and getattr(adapter.factory, 'bind', None):
+
+           adapter.factory.bind(app)

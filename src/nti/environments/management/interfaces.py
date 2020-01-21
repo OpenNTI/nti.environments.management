@@ -38,7 +38,7 @@ class IApplicationTask(interface.Interface):
         """
 
 
-class ISetupEnvironmentTask(IApplicationTask):
+class IProvisionEnvironmentTask(IApplicationTask):
     """
     The task responsible for setting up an environment.
     """
@@ -49,5 +49,39 @@ class ISetupEnvironmentTask(IApplicationTask):
         site_id, site_name, and dns_name.
         """
 
+class IHaproxyBackendTask(IApplicationTask):
+    """
+    Sets up the new haproxy backend and configures
+    the haproxy mapping
+    """
 
-    
+    def __call__(site_id, dns_name):
+        """
+        Dispatch a task that setups up the tier1 haproxy
+        backend and mapping.
+        """
+
+class IDNSMappingTask(IApplicationTask):
+    """
+    A task capable of setting up dns entries for a site
+    """
+
+    def __call__(dns_name):
+        """
+        Given a dns_name, add an appropriate dns entry
+        to route traffic to the tier1 haproxy.
+        """
+
+
+class ISetupEnvironmentTask(IApplicationTask):
+    """
+    A composite task that creates and configures an environment.
+    """
+
+    def __call__(site_id, site_name, dns_name):
+        """
+        Provisions an environment with an IProvisionEnvironmentTask,
+        and establishes dns and haproxy configuration with IDNSMappingTask
+        and IHaproxyBackendTask respectively. This task acts like a celery
+        group and returns a celery GroupResult
+        """

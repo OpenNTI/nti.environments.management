@@ -6,8 +6,20 @@
 	<include package="zope.component" file="meta.zcml" />
 	<include package="zope.component" />
 
-	<adapter factory=".envsetup.SetupTask"
+	<adapter factory=".tasks.ProvisionEnvironmentTask"
 			for=".interfaces.ICeleryApp"
+			provides=".interfaces.IProvisionEnvironmentTask"/>
+
+	<adapter factory=".tasks.MockSetupHAProxyBackend"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IHaproxyBackendTask"/>
+
+	<adapter factory=".tasks.MockAddDNSMappingTask"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IDNSMappingTask"/>
+
+	<adapter factory=".tasks.SetupEnvironmentTask"	
+			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.ISetupEnvironmentTask"/>
 
 
