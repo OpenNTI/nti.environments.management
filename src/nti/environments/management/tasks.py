@@ -134,7 +134,7 @@ def main():
 
     result = task('foo', 'bar', 'baz.nextthought.io')
 
-    from IPython.core.debugger import Tracer; Tracer()()
+    print(result.get())
 
 if __name__ == "__main__":
     main()
