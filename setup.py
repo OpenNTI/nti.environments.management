@@ -8,7 +8,14 @@ with open(os.path.join(here, 'README.txt')) as f:
 with open(os.path.join(here, 'CHANGES.txt')) as f:
     CHANGES = f.read()
 
-requires = []
+requires = [
+    'celery[redis,sqlalchemy]',
+    'zope.interface',
+    'zope.component',
+    'nti.schema',
+    'zope.dottedname',
+    'zope.configuration'
+]
 
 tests_require = []
 
@@ -35,7 +42,8 @@ setup(
     zip_safe=False,
     extras_require={
         'test': tests_require,
-        'docs': docs_require
+        'docs': docs_require,
+        'flower': ['flower']
     },
     install_requires=requires,
     entry_points={

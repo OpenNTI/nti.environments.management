@@ -1,0 +1,26 @@
+<!-- -*- mode: nxml -*- -->
+<configure	xmlns="http://namespaces.zope.org/zope"
+			xmlns:i18n="http://namespaces.zope.org/i18n"
+			xmlns:zcml="http://namespaces.zope.org/zcml">
+
+	<include package="zope.component" file="meta.zcml" />
+	<include package="zope.component" />
+
+	<adapter factory=".tasks.ProvisionEnvironmentTask"
+			for=".interfaces.ICeleryApp"
+			provides=".interfaces.IProvisionEnvironmentTask"/>
+
+	<adapter factory=".tasks.MockSetupHAProxyBackend"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IHaproxyBackendTask"/>
+
+	<adapter factory=".tasks.MockAddDNSMappingTask"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IDNSMappingTask"/>
+
+	<adapter factory=".tasks.SetupEnvironmentTask"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.ISetupEnvironmentTask"/>
+
+
+</configure>
