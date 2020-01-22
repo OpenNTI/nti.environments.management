@@ -14,13 +14,28 @@
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IHaproxyBackendTask"/>
 
-	<adapter factory=".dns.MockAddDNSMappingTask"	
+	<configure zcml:condition="have devmode">
+
+	  	<adapter factory=".dns.MockAddDNSMappingTask"	
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IDNSMappingTask"/>
+
+	</configure>
+
+	<configure zcml:condition="not-have devmode">
+
+	  	<adapter factory=".dns.AddDNSMappingTask"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IDNSMappingTask"/>
+
+	</configure>
 
 	<adapter factory=".tasks.SetupEnvironmentTask"	
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.ISetupEnvironmentTask"/>
+
+	<utility factory=".dns._record_creator_factory"
+		 provides=".interfaces.IDNSAliasRecordCreator" />
 
 
 </configure>
