@@ -13,7 +13,6 @@ from zope import interface
 
 from nti.tools.aws.route53 import add_dns_recordset
 
-from .interfaces import IProvisionEnvironmentTask
 from .interfaces import IDNSAliasRecordCreator
 from .interfaces import IDNSMappingTask
 from .interfaces import ISettings
