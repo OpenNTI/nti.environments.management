@@ -72,10 +72,9 @@ class ProvisionEnvironmentTask(AbstractTask):
         return self.task.apply_async((site_id, site_name, dns_name))
 
 
-def mock_task(task, *args, **kwargs):
-    time.sleep(kwargs.get('sleep', 60))
-    return {'args': args,
-            'kwargs': kwargs}
+def mock_task(task, *args, sleep=3, result=None, **kwargs):
+    time.sleep(sleep)
+    return result
 
 
 @interface.implementer(ISetupEnvironmentTask)
