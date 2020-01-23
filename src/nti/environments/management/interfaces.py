@@ -37,6 +37,20 @@ class IApplicationTask(interface.Interface):
         The return value should be the celery AsyncResult
         """
 
+class IEnvironmentProvisioner(interface.Interface):
+    """
+    An object that can provision a container environment installation.
+    Right now this is registered as a utility, but these could in theory
+    be registered based off of some specification file if we had
+    different levels of things we needed to initialize.
+    """
+
+    def provision_environment(site_id, site_name, dns_name):
+        """
+        Setup a new environment for the provided site_id, with the given
+        name and dns_name. We expect this is invoked on the machine that
+        will host the containers
+        """
 
 class IProvisionEnvironmentTask(IApplicationTask):
     """

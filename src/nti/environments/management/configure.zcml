@@ -6,10 +6,6 @@
 	<include package="zope.component" file="meta.zcml" />
 	<include package="zope.component" />
 
-	<adapter factory=".tasks.ProvisionEnvironmentTask"
-			for=".interfaces.ICeleryApp"
-			provides=".interfaces.IProvisionEnvironmentTask"/>
-
 	<configure zcml:condition="have devmode">
 
 	  	<adapter factory=".dns.MockAddDNSMappingTask"	
@@ -19,6 +15,12 @@
 		<adapter factory=".haproxy.MockSetupHAProxyBackend"	
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IHaproxyBackendTask"/>
+
+		<adapter factory=".pod.MockProvisionEnvironmentTask"
+			for=".interfaces.ICeleryApp"
+			provides=".interfaces.IProvisionEnvironmentTask"/>
+
+		
 
 	</configure>
 
@@ -32,6 +34,10 @@
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IHaproxyBackendTask"/>
 
+		<adapter factory=".pod.ProvisionEnvironmentTask"
+			for=".interfaces.ICeleryApp"
+			provides=".interfaces.IProvisionEnvironmentTask"/>
+
 	</configure>
 
 	<adapter factory=".tasks.SetupEnvironmentTask"	
@@ -43,6 +49,17 @@
 
 	<utility factory=".haproxy._haproxy_configurator_factory"
 		 provides=".interfaces.IHaproxyConfigurator" />
+
+	<configure zcml:condition="not-have devmode">
+	  <utility factory=".pod._provisioner_factory"
+		   provides=".interfaces.IEnvironmentProvisioner" />
+
+	</configure>
+
+	<configure zcml:condition="have devmode">
+	  <utility factory=".pod._mock_provisioner_factory"
+		   provides=".interfaces.IEnvironmentProvisioner" />
+	</configure>
 
 
 </configure>

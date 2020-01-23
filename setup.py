@@ -57,6 +57,6 @@ setup(
     entry_points={
     },
     scripts=[
-        'bin/mocks/nti_environments_managment_mock_init.sh'
+        'bin/mocks/nti_environments_management_mock_init'
     ]
 )
