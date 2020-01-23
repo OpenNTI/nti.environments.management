@@ -1,8 +1,3 @@
-"""
-A simulated environment setup task and accompanying script
-entry point.
-"""
-
 import argparse
 import os
 import time
@@ -98,9 +93,10 @@ def reload_haproxy_cfg(haproxy_podname):
 
     logger.info('Sending SIGUSR2 to pod named %s', haproxy_podname)
     completed_process = subprocess.run(['podman', 'kill', '--signal=SIGUSR2', haproxy_podname],
-                                       check=True)
+                                       check=True,
+                                       shell=True)
     logger.info('SIGUSR2 sent to pod named %s. Completed with code=(%i)',
-                haproxy_podname, completed_process.return_code)
+                haproxy_podname, completed_process.returncode)
     
 
 @interface.implementer(IHaproxyConfigurator)
