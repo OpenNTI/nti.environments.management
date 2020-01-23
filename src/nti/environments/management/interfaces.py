@@ -61,6 +61,22 @@ class IHaproxyBackendTask(IApplicationTask):
         backend and mapping.
         """
 
+class IHaproxyConfigurator(interface.Interface):
+    """
+    An object capable of configuring haproxy
+    """
+
+    def add_backend(site_id, dns_name):
+        """
+        Configures an haproxy backend for the given site_id
+        and sets up an appropriate backend mapping
+        """
+
+    def reload_config():
+        """
+        Gracefully reloads the haproxy configuration
+        """
+
 class IDNSMappingTask(IApplicationTask):
     """
     A task capable of setting up dns entries for a site
