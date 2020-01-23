@@ -31,6 +31,7 @@ class AbstractTask(object):
 
     NAME = None
     TC = None
+    QUEUE = None
 
     @classmethod
     def bind(cls, app):
@@ -75,34 +76,6 @@ def mock_task(task, *args, **kwargs):
     time.sleep(kwargs.get('sleep', 60))
     return {'args': args,
             'kwargs': kwargs}
-
-
-def mock_haproxy(*args, **kwargs):
-    return mock_task(*args, **kwargs)
-
-@interface.implementer(IHaproxyBackendTask)
-class MockSetupHAProxyBackend(AbstractTask):
-
-    NAME = 'create_haproxy_backend'
-    TC = mock_haproxy
-
-    def __call__(self, site_id, dns_name):
-        return self.task.apply_async((site_id, dns_name))
-
-
-def mock_dns(*args, **kwargs):
-    return mock_task(*args, **kwargs)
-
-
-@interface.implementer(IDNSMappingTask)
-class MockAddDNSMappingTask(AbstractTask):
-
-    NAME = 'add_dns_mapping'
-    TC = mock_dns
-
-    def __call__(self, dns_name):
-        return self.task.apply_async((dns_name))
-
 
 
 @interface.implementer(ISetupEnvironmentTask)
