@@ -42,22 +42,21 @@ def _add_dns_mapping(task, dns_name):
 @interface.implementer(IDNSAliasRecordCreator)
 class DNSAliasAdder(object):
     
-    def __init__(self, client, zone, target):
+    def __init__(self, zone, target):
         assert zone[-1] == '.', 'Zones must end in "."'
         
-        self.client = client
         self.zone = zone
         self.target = target
 
     def add_alias(self, dns_name):
+        client = boto3.client('route53')
         logger.info('Creating A record alias for %s to %s in zone %s', dns_name, self.target, self.zone)
-        add_dns_recordset(self.client, self.zone, dns_name, alias_target=self.target)
+        add_dns_recordset(client, self.zone, dns_name, alias_target=self.target)
 
 def _record_creator_factory():
     settings = component.getUtility(ISettings)['dns']
-    client = boto3.client('route53')
 
-    return DNSAliasAdder(client, settings['zone'], settings['alias_target'])
+    return DNSAliasAdder(settings['zone'], settings['alias_target'])
 
 @interface.implementer(IDNSMappingTask)
 class AddDNSMappingTask(AbstractTask):
