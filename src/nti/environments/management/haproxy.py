@@ -70,6 +70,12 @@ def add_backend_mapping(map_location, dns_name, site_id):
 
     TODO add some sort of locking / lock file in case the serial processing
     gets screwed up.
+
+    Haproxy 1.8 let's us manipulate the mappings through the API but it's
+    unclear if this is ever automatically flushed to disk. 
+
+    https://www.haproxy.com/blog/introduction-to-haproxy-maps/#editing-with-the-runtime-api
+    
     """
     logger.info('Updating haproxy backend map map=(%s) site=(%s) dns_name(%s)',
                 map_location, site_id, dns_name)
@@ -82,6 +88,8 @@ def reload_haproxy_cfg(haproxy_podname):
     inside a pod so we have to use podman.
 
     Invokes `podman kill --signal=SIGUSR2 <podname>`
+
+    Moving to haproxy 2.0 would allow us to use the api to do this.
     """
 
     logger.info('Sending SIGUSR2 to pod named %s', haproxy_podname)
@@ -93,6 +101,10 @@ def reload_haproxy_cfg(haproxy_podname):
 
 @interface.implementer(IHaproxyConfigurator)
 class HAProxyConfigurator(object):
+    """
+    An object that can configure haproxy. This is setup right now
+    to work with haproxy 1.8 running in a podman pod.
+    """
 
     def __init__(self, backends_folder, backend_map, pod_name):
         self.backends_folder = backends_folder
