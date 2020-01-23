@@ -72,6 +72,15 @@ class IDNSMappingTask(IApplicationTask):
         to route traffic to the tier1 haproxy.
         """
 
+class IDNSAliasRecordCreator(interface.Interface):
+    """
+    An object that can create dns A record aliases.
+    """
+
+    def add_alias(self, dns_name):
+        """
+        Add an alias for the following dns name
+        """
 
 class ISetupEnvironmentTask(IApplicationTask):
     """
@@ -85,3 +94,8 @@ class ISetupEnvironmentTask(IApplicationTask):
         and IHaproxyBackendTask respectively. This task acts like a celery
         group and returns a celery GroupResult
         """
+
+class ISettings(interface.Interface):
+    """
+    A dictionary like object providing configuration
+    """

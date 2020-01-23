@@ -27,3 +27,5 @@ docs/_build
 var
 .vscode
 htmlcov/
+
+my.ini

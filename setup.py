@@ -14,10 +14,15 @@ requires = [
     'zope.component',
     'nti.schema',
     'zope.dottedname',
-    'zope.configuration'
+    'zope.configuration',
+    'dnspython',
+    'nti.tools.aws @ git+ssh://git@github.com/NextThought/nti.tools.aws'
 ]
 
-tests_require = []
+tests_require = [
+    'nti.testing',
+    'fudge'
+]
 
 docs_require = []
 

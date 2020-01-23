@@ -67,15 +67,6 @@ class TLSRedisBackend(celery.backends.redis.RedisBackend):
         params.update({"connection_class": self.redis.SSLConnection})
         return params
 
-def _maybe_set(settings, name, envvar, coercer=None, default=None):
-    if envvar in os.environ:
-        value = os.environ[envvar]
-        if coercer is not None:
-            value = coercer(value)
-        settings[name] = value
-    elif default is not None:
-        settings.setdefault(name, default)
-
 @interface.implementer(ICeleryApp)    
 class Celery(_Celery):
 
@@ -100,8 +91,9 @@ def configure_celery(name='nti.environments.management', settings=None, loader=N
     if settings is None:
         settings = {}
 
-    _maybe_set(settings, "celery.broker_url", "BROKER_URL")
-    _maybe_set(settings, "celery.backend_url", "RESULT_URL")
+    if 'celery' in settings:
+        settings = settings['celery']
+        
 
     broker_transport_options = {}
 
