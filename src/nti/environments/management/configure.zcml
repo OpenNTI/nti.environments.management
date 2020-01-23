@@ -50,16 +50,7 @@
 	<utility factory=".haproxy._haproxy_configurator_factory"
 		 provides=".interfaces.IHaproxyConfigurator" />
 
-	<configure zcml:condition="not-have devmode">
-	  <utility factory=".pod._provisioner_factory"
+	<utility factory=".pod._provisioner_factory"
 		   provides=".interfaces.IEnvironmentProvisioner" />
-
-	</configure>
-
-	<configure zcml:condition="have devmode">
-	  <utility factory=".pod._mock_provisioner_factory"
-		   provides=".interfaces.IEnvironmentProvisioner" />
-	</configure>
-
 
 </configure>

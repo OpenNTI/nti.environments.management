@@ -17,7 +17,8 @@ logger = __import__('logging').getLogger(__name__)
 
 
 def _mock_init_pod_env(*args, **kwargs):
-    return mock_task(*args, **kwargs)
+    result = {'admin_invitation': '/dataserver2/@@accept-site-invitation?code=mockcode'}
+    return mock_task(*args, sleep=10, result=result, **kwargs)
 
 
 def _init_pod_env(task, site_id, site_name, dns_name):
@@ -67,11 +68,6 @@ def _provisioner_factory():
     settings = component.getUtility(ISettings)
     return EnvironmentProvisioner('init_pod_environment')
 
-def _mock_provisioner_factory():
-    settings = component.getUtility(ISettings)
-    return EnvironmentProvisioner('nti_environments_management_mock_init')
-
-
 @interface.implementer(IProvisionEnvironmentTask)
 class ProvisionEnvironmentTask(AbstractTask):
 
@@ -87,3 +83,4 @@ class ProvisionEnvironmentTask(AbstractTask):
 class MockProvisionEnvironmentTask(ProvisionEnvironmentTask):
 
     NAME = 'mock_' + ProvisionEnvironmentTask.NAME
+    TC = _mock_init_pod_env
