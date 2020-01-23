@@ -62,6 +62,9 @@ def write_backend(site_id, folder):
 
 def add_backend_mapping(map_location, dns_name, site_id):
     """
+    DANGER: This function writes to a shared resource which we currently make
+    no attempt at locking. We expect to be invoked via a serial celery queue.
+
     Add the dns->backend mapping to the mapping file.
 
     This is obviously at risk for concurrency issues especially
@@ -71,11 +74,12 @@ def add_backend_mapping(map_location, dns_name, site_id):
     TODO add some sort of locking / lock file in case the serial processing
     gets screwed up.
 
-    Haproxy 1.8 let's us manipulate the mappings through the API but it's
-    unclear if this is ever automatically flushed to disk. 
+    TODO Haproxy 1.8 let's us manipulate the mappings through the API
+    but it's unclear if this is ever automatically flushed to disk. We
+    can probably come up with something safer than this approach.
 
     https://www.haproxy.com/blog/introduction-to-haproxy-maps/#editing-with-the-runtime-api
-    
+
     """
     logger.info('Updating haproxy backend map map=(%s) site=(%s) dns_name(%s)',
                 map_location, site_id, dns_name)
