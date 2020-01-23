@@ -10,15 +10,15 @@
 			for=".interfaces.ICeleryApp"
 			provides=".interfaces.IProvisionEnvironmentTask"/>
 
-	<adapter factory=".tasks.MockSetupHAProxyBackend"	
-			for=".interfaces.ICeleryApp"	
-			provides=".interfaces.IHaproxyBackendTask"/>
-
 	<configure zcml:condition="have devmode">
 
 	  	<adapter factory=".dns.MockAddDNSMappingTask"	
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IDNSMappingTask"/>
+
+		<adapter factory=".haproxy.MockSetupHAProxyBackend"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IHaproxyBackendTask"/>
 
 	</configure>
 
@@ -28,6 +28,10 @@
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IDNSMappingTask"/>
 
+		<adapter factory=".haproxy.SetupHAProxyBackend"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IHaproxyBackendTask"/>
+
 	</configure>
 
 	<adapter factory=".tasks.SetupEnvironmentTask"	
@@ -36,6 +40,9 @@
 
 	<utility factory=".dns._record_creator_factory"
 		 provides=".interfaces.IDNSAliasRecordCreator" />
+
+	<utility factory=".haproxy._haproxy_configurator_factory"
+		 provides=".interfaces.IHaproxyConfigurator" />
 
 
 </configure>
