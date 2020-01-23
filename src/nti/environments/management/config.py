@@ -21,7 +21,7 @@ def configure_settings(config=None):
     config = ConfigParser()
     config.read([l for l in locations if l])
 
-    interface.alsoProvides(ISettings)
+    interface.alsoProvides(config, ISettings)
 
     component.getGlobalSiteManager().registerUtility(config, ISettings)
     

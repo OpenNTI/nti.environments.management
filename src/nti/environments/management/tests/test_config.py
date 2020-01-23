@@ -17,6 +17,8 @@ class TestConfig(unittest.TestCase):
     def test_settings_registered(self):
         settings = component.getUtility(ISettings)
 
+        assert_that(ISettings.providedBy(settings), is_(True))
+
         assert_that(settings['dns']['zone'], is_('nextthot.com.'))
 
         
