@@ -77,6 +77,7 @@ class ProvisionEnvironmentTask(AbstractTask):
 
     NAME = 'provision_env'
     TC = _init_pod_env
+    QUEUE = 'any_host'
 
     def __call__(self, site_id, site_name, dns_name):
         return self.task.apply_async((site_id, site_name, dns_name, ))

@@ -48,6 +48,8 @@ from zope import interface
 from .interfaces import ICeleryApp
 from .interfaces import IApplicationTask
 
+logger = __import__('logging').getLogger(__name__)
+
 # We need to trick Celery into supporting rediss:// URLs which is how redis-py
 # signals that you should use Redis with TLS.
 celery.app.backends.BACKEND_ALIASES[
@@ -77,6 +79,74 @@ class Celery(_Celery):
 
 class Task(_Task):
     pass
+
+def setup_routing(app):
+    """
+    We route tasks to queues based on type. Many of our tasks have to run
+    on specific hosts. For example the task to setup a pod enivironment has to
+    run on the host machine. The tasks that currently maninuplate tier1 haproxy
+    rely on updating configs (currently) and therefore have to run on the tier1 box.
+
+    TODO we're oddly coupled to our individual tasks here, which is a shame. This
+    feels janky, but it works, and we're still learning...
+    """
+
+    # Require explicit queue creation
+    app.conf.task_create_missing_queues = False
+    app.conf.task_default_queue = 'default'
+
+    # First setup our default queues and exchanges. This is where tasks route
+    # to by default.
+
+    # We send everything through one exchange right now
+    default_exchange = Exchange('default', type='direct')
+
+    # Unfortunately we have to have a default queue, even though
+    # we don't want anything dispatched to it. Can we assert this?
+    default_queue = Queue('default', default_exchange, routing_key='default')
+
+    # Now setup some queues
+
+    # First is a queue for tasks that can run on any available host system. For example
+    # Things such as spinning up a new environment
+    any_hosts_queue = Queue('any_host', default_exchange, routing_key='any_host')
+
+    # A queue for things that need to run on, or interact with, the tier one proxy.
+    # For example manipulating haproxy backends
+    tier1_queue = Queue('tier1', default_exchange, routing_key='tier1')
+
+    # A queue for route53 dns requests
+    dns_queue = Queue('dns', default_exchange, routing_key='dns')
+
+    app.conf.task_queues = (any_hosts_queue, tier1_queue, dns_queue, default_queue, )
+
+    # Now we need to route tasks. In general routing happens based on the
+    # routing information given to the task at call time, the routing information
+    # on the Task subclass, then the router configuration.
+    #
+    # It's documented best practice to control routing in the configuration. we do that
+    # here.
+
+    # This is where things get icky because we have different task names depending
+    # on how zcml is loaded. Wither either do something like prefix/suffix on the name
+    # or each task has to tell us how to route. In general I get the impression it shouldn't
+    # be the tasks decision, but our tasks are coupled with where they need to run in general
+    # so we take the easy approach for now.
+    routes = {}
+    
+    for taskcls in _bindable_tasks():
+        # If there is no queue that is a programming error
+        assert taskcls.QUEUE
+
+        routes[taskcls.NAME] = {
+            'queue': taskcls.QUEUE,
+            'routing_key': taskcls.QUEUE
+        }
+
+    logger.info('Configuring routes %s', routes)
+
+    app.conf.task_routes = routes
+    
 
 def configure_celery(name='nti.environments.management', settings=None, loader=None):
     """
@@ -126,7 +196,23 @@ def configure_celery(name='nti.environments.management', settings=None, loader=N
     
     app.Task = Task
 
+    setup_routing(app)
+    
     return app
+
+def _bindable_tasks(registry=None):
+    """
+    Look for any adapter registration that implements IApplicationTask
+    This is probably really slow, but it allows us to not have to switch the
+    mocks in and out here, we rely on the zcml implementations
+    """
+    if registry is None:
+        registry = getGlobalSiteManager()
+
+    for adapter in registry.registeredAdapters():
+        if adapter.provided.isOrExtends(IApplicationTask) \
+           and getattr(adapter.factory, 'bind', None):
+            yield adapter.factory
 
 @connect_on_app_finalize
 def register_tasks(app):
@@ -137,12 +223,5 @@ def register_tasks(app):
     or time to do this.
     """
 
-    # Look for any adapter registration that implements IApplicationTask
-    # This is probably really slow, but it allows us to not have to switch the
-    # mocks in and out here, we rely on the zcml implementations
-    gsm = getGlobalSiteManager()
-    for adapter in gsm.registeredAdapters():
-        if adapter.provided.isOrExtends(IApplicationTask) \
-           and getattr(adapter.factory, 'bind', None):
-
-           adapter.factory.bind(app)
+    for taskcls in _bindable_tasks():
+        taskcls.bind(app)
