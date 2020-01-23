@@ -60,7 +60,7 @@ class EnvironmentProvisioner(object):
         completed_process.check_returncode()
 
         stdout = completed_process.stdout
-        assert stdout
+        assert stdout is not None
         return json.loads(stdout)
 
 def _provisioner_factory():
