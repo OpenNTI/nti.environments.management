@@ -32,6 +32,13 @@ from .interfaces import ISetupEnvironmentTask
 
 logger = __import__('logging').getLogger(__name__)
 
+class SimpleTaskState(object):
+
+    task_id = None
+
+    def __init__(self, id):
+        self.task_id = id
+
 class AbstractTask(object):
 
     NAME = None
@@ -49,22 +56,23 @@ class AbstractTask(object):
     def task(self):
         return self.app.tasks[self.NAME]
 
-    def restore_task(self, taskid):
+    def restore_task(self, state):
         """
         Restores the given task from the app we are associated with.
         By default we restore as an AsyncResult but subclasses may override that.
         """
-        return AsyncResult(taskid, app=app)
+        task_id = state.task_id
+        return AsyncResult(task_id, app=app)
         
 
-    def save(async_result):
+    def save_task(async_result):
         """
         Save the async_result for retrieval latter. By default
         tasks return AsyncResults which persist automatically when
         a backend is provided. This noops, but subclasses may return
         tasks that must explicitly save. For example a celery.result.ResultSet
         """
-        return async_result.id
+        return SimpleTaskState(async_result.id)
 
     
 
@@ -124,6 +132,18 @@ class SiteInfo(object):
         self.site_id = site_id
         self.dns_name = dns_name
 
+class SetupTaskState(SimpleTaskState):
+    """
+    In addition to the basic task information,
+    also track the parent group state
+    """
+
+    group_id = None
+
+    def __init__(self, task_id, group_id):
+        self.task_id = task_id
+        self.group_id = group_id
+
 @interface.implementer(ISetupEnvironmentTask)
 class SetupEnvironmentTask(AbstractTask):
 
@@ -151,6 +171,28 @@ class SetupEnvironmentTask(AbstractTask):
 
         c = (group(ha, dns, prov) | self.join_task.s(info))
         return c()
+
+    def restore_task(self, state):
+        """
+        Restores the given task from the app we are associated with.
+        By default we restore as an AsyncResult but subclasses may override that.
+        """
+        task_id = state.task_id
+        group_id = state.group_id
+
+        parent = GroupResult.restore(group_id, app=self.app)
+        return AsyncResult(task_id, parent=parent, app=self.app)
+        
+
+    def save_task(self, async_result):
+        """
+        Save the async_result for retrieval latter. By default
+        tasks return AsyncResults which persist automatically when
+        a backend is provided. This noops, but subclasses may return
+        tasks that must explicitly save. For example a celery.result.ResultSet
+        """
+        async_result.parent.save()
+        return SetupTaskState(async_result.id, async_result.parent.id)
 
 def main():    
     from .worker import app

@@ -75,7 +75,7 @@ class IApplicationTask(interface.Interface):
         a more specific interface.
         """
 
-    def save(async_result):
+    def save_task(async_result):
         """
         Save the async_result for retrieval by the returned task_info
         latter. This ensures restore_task can return a proper value.
