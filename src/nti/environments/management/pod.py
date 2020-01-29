@@ -18,7 +18,7 @@ logger = __import__('logging').getLogger(__name__)
 
 _MAX_SLEEP = 120
 
-def _mock_init_pod_env(task, site_id, site_name, dns_name):
+def _mock_init_pod_env(task, site_id, site_name, dns_name, customer_name, customer_email):
     """
     A mock task that simulates an environment pod being spun up.
     We let the task caller influence the behaviour of the task by the domain name.
@@ -46,9 +46,9 @@ def _mock_init_pod_env(task, site_id, site_name, dns_name):
     return 'host1.dev', '/dataserver2/@@accept-site-invitation?code=mockcode'
 
 
-def _init_pod_env(task, site_id, site_name, dns_name):
+def _init_pod_env(task, site_id, site_name, dns_name, customer_name, customer_email):
     provisioner = component.getUtility(IEnvironmentProvisioner)
-    result = provisioner.provision_environment(site_id, site_name, dns_name)
+    result = provisioner.provision_environment(site_id, site_name, dns_name, customer_name, customer_email)
     return result['host_system'], result['admin_invitation']
 
 def _pod_root_init_log(podid):
@@ -62,10 +62,10 @@ class EnvironmentProvisioner(object):
     def __init__(self, script_name):
         self.script_name = script_name
 
-    def provision_environment(self, site_id, site_name, dns_name):
+    def provision_environment(self, site_id, site_name, dns_name, customer_name, customer_email):
         logger.info('Provisioning environment using %s for site=(%s) name=(%s) dns_name=(%s)',
                     self.script_name, site_id, site_name, dns_name)
-        completed_process = subprocess.run([self.script_name, site_id, site_name, dns_name],
+        completed_process = subprocess.run([self.script_name, site_id, site_name, dns_name, customer_name, customer_email],
                                            check=False,
                                            capture_output=True,
                                            encoding='utf-8',
@@ -101,8 +101,8 @@ class ProvisionEnvironmentTask(AbstractTask):
     TC = _init_pod_env
     QUEUE = 'any_host'
 
-    def __call__(self, site_id, site_name, dns_name):
-        return self.task.apply_async((site_id, site_name, dns_name, ))
+    def __call__(self, site_id, site_name, dns_name, customer_name, customer_email):
+        return self.task.apply_async((site_id, site_name, dns_name, customer_name, customer_email))
 
 
 @interface.implementer(IProvisionEnvironmentTask)
