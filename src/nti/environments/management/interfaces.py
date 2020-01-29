@@ -14,6 +14,37 @@ class ICeleryApp(interface.Interface):
     pass
 
 
+class IAsyncResult(interface.Interface):
+    """
+    Represents an asynchronous celery result. e.g.
+    celery.result.AsyncResult or similar.
+    """
+
+    id = interface.Attribute('The task identifier')
+
+    def ready():
+        """
+        Return :const:`True` if the task has executed.
+
+        If the task is still running, pending, or is waiting
+        for retry then :const:`False` is returned.
+        """
+
+
+    def get(*args, **kwargs):
+        """
+        Get the results of the task. See
+        https://docs.celeryproject.org/en/stable/_modules/celery/result.html#AsyncResult.get
+
+        NOTE this call blocks by default if the task is not ready
+        """
+
+    def successful():
+        """
+        Return :const:`True` if the task executed successfully.
+        """
+    
+
 class IApplicationTask(interface.Interface):
     """
     An object that represents an asynchronous task. Typically
@@ -35,6 +66,20 @@ class IApplicationTask(interface.Interface):
         implementations are expected to define args and kwargs.
 
         The return value should be the celery AsyncResult
+        """
+
+    def restore_task(task_info):
+        """
+        Restores an async result for the given task_info.
+        This is an implementation of ITaskResult. Subclasses may return
+        a more specific interface.
+        """
+
+    def save(async_result):
+        """
+        Save the async_result for retrieval by the returned task_info
+        latter. This ensures restore_task can return a proper value.
+
         """
 
 class IEnvironmentProvisioner(interface.Interface):
@@ -112,6 +157,17 @@ class IDNSAliasRecordCreator(interface.Interface):
         Add an alias for the following dns name
         """
 
+class IInitializedSiteInfo(interface.Interface):
+
+    dns_name = interface.Attribute('The dns_name configured')
+
+    site_id = interface.Attribute('The site_id setup')
+
+    host = interface.Attribute('The identity of the host system')
+
+    admin_invitation = interface.Attribute('The invitation that can be used to create an initial admin account')
+
+
 class ISetupEnvironmentTask(IApplicationTask):
     """
     A composite task that creates and configures an environment.
@@ -122,7 +178,7 @@ class ISetupEnvironmentTask(IApplicationTask):
         Provisions an environment with an IProvisionEnvironmentTask,
         and establishes dns and haproxy configuration with IDNSMappingTask
         and IHaproxyBackendTask respectively. This task acts like a celery
-        group and returns a celery GroupResult
+        group and returns a ISetupEnvironmentResult
         """
 
 class ISettings(interface.Interface):

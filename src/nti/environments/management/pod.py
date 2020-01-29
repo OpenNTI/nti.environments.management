@@ -1,5 +1,6 @@
 import os
 import json
+import time
 
 import subprocess
 
@@ -17,7 +18,7 @@ logger = __import__('logging').getLogger(__name__)
 
 
 def _mock_init_pod_env(*args, **kwargs):
-    result = {'admin_invitation': '/dataserver2/@@accept-site-invitation?code=mockcode'}
+    result = '/dataserver2/@@accept-site-invitation?code=mockcode'
     return mock_task(*args, sleep=10, result=result, **kwargs)
 
 
@@ -62,7 +63,7 @@ class EnvironmentProvisioner(object):
 
         stdout = completed_process.stdout
         assert stdout is not None
-        return json.loads(stdout)
+        return json.loads(stdout)['admin_invitation']
 
 def _provisioner_factory():
     settings = component.getUtility(ISettings)

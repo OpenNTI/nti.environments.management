@@ -12,6 +12,9 @@ import functools
 
 from celery import group
 
+from celery.result import AsyncResult
+from celery.result import GroupResult
+
 from zope.component.hooks import setHooks
 
 from zope.configuration import config
@@ -21,11 +24,13 @@ from zope.dottedname import resolve as dottedname
 
 from zope import interface
 
+from .interfaces import IInitializedSiteInfo
 from .interfaces import IProvisionEnvironmentTask
 from .interfaces import IDNSMappingTask
 from .interfaces import IHaproxyBackendTask
 from .interfaces import ISetupEnvironmentTask
 
+logger = __import__('logging').getLogger(__name__)
 
 class AbstractTask(object):
 
@@ -43,6 +48,23 @@ class AbstractTask(object):
     @property
     def task(self):
         return self.app.tasks[self.NAME]
+
+    def restore_task(self, taskid):
+        """
+        Restores the given task from the app we are associated with.
+        By default we restore as an AsyncResult but subclasses may override that.
+        """
+        return AsyncResult(taskid, app=app)
+        
+
+    def save(async_result):
+        """
+        Save the async_result for retrieval latter. By default
+        tasks return AsyncResults which persist automatically when
+        a backend is provided. This noops, but subclasses may return
+        tasks that must explicitly save. For example a celery.result.ResultSet
+        """
+        return async_result.id
 
     
 
@@ -76,12 +98,45 @@ def mock_task(task, *args, sleep=3, result=None, **kwargs):
     time.sleep(sleep)
     return result
 
+def join_setup_environment_task(task, group_result, site_info):
+    """
+    Given a group result for a site setup, complete the site_info object
+    and return it. This tasks acts as a chord callback for the group
+    """
+
+    # Currently the only task in our group that has output we care about is
+    # the provision task. It's the last child in the group.
+    # TODO how can we reduce the coupling to the group structure.
+    invite = group_result[-1]
+    logger.info('Site %s spinup complete.', site_info.site_id)
+    site_info.admin_invitation = invite
+    return site_info
+
+@interface.implementer(IInitializedSiteInfo)
+class SiteInfo(object):
+
+    dns_name = None
+    site_id = None
+    host = None
+    admin_invitation = None
+
+    def __init__(self, site_id, dns_name):
+        self.site_id = site_id
+        self.dns_name = dns_name
 
 @interface.implementer(ISetupEnvironmentTask)
-class SetupEnvironmentTask(object):
+class SetupEnvironmentTask(AbstractTask):
 
     def __init__(self, app):
         self.app = app
+
+    @classmethod
+    def bind(cls, app):
+        app.task(bind=True, name=join_setup_environment_task.__name__)(join_setup_environment_task)
+
+    @property
+    def join_task(self):
+        return self.app.tasks[join_setup_environment_task.__name__]
 
     def __call__(self, site_id, site_name, dns_name):
         ha = IHaproxyBackendTask(self.app).task
@@ -92,8 +147,10 @@ class SetupEnvironmentTask(object):
         dns = dns.s(dns_name)
         prov = prov.s(site_id, site_name, dns_name)
 
-        return group(ha, dns, prov)()
+        info = SiteInfo(site_id, dns_name)
 
+        c = (group(ha, dns, prov) | self.join_task.s(info))
+        return c()
 
 def main():    
     from .worker import app

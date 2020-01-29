@@ -15,6 +15,7 @@ requires = [
     'nti.schema',
     'zope.dottedname',
     'zope.configuration',
+    'zope.security',
     'dnspython',
     'nti.tools.aws @ git+ssh://git@github.com/NextThought/nti.tools.aws'
 ]
