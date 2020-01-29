@@ -52,8 +52,10 @@ class TestDNS(unittest.TestCase):
         site_id = self.site_id
         site_name = 'foo'
         dns_name = 'bar.nextthot.com'
+        name = 'Larry Bird'
+        email = 'larry@nextthought.com'
 
-        mock_run.expects_call().with_args([prov.script_name, site_id, site_name, dns_name],
+        mock_run.expects_call().with_args([prov.script_name, site_id, site_name, dns_name, name, email],
                                           check=False,
                                           capture_output=True,
                                           encoding='utf-8',
@@ -61,7 +63,7 @@ class TestDNS(unittest.TestCase):
         fake_process = mock_run.returns_fake(name='subprocess.CompletedProcess').is_a_stub()
         fake_process.has_attr(stderr='foo', stdout='{"admin_invitation": "foo", "host_system": "bar"}', returncode=0)
 
-        result = prov.provision_environment(site_id, site_name, dns_name)
+        result = prov.provision_environment(site_id, site_name, dns_name, name, email)
 
         assert_that(result, is_({"admin_invitation": "foo", "host_system": "bar"}))
 
@@ -86,9 +88,11 @@ class TestDNS(unittest.TestCase):
         site_id = self.site_id
         site_name = 'foo'
         dns_name = 'bar.nextthot.com'
+        name = 'Larry Bird'
+        email = 'larry@nextthought.com'
 
         # Now if instead we return a non 0 exit code, we get a log still but also an exception is raised
-        mock_run.expects_call().with_args([prov.script_name, site_id, site_name, dns_name],
+        mock_run.expects_call().with_args([prov.script_name, site_id, site_name, dns_name, name, email],
                                           check=False,
                                           capture_output=True,
                                           encoding='utf-8',
@@ -97,7 +101,7 @@ class TestDNS(unittest.TestCase):
         fake_process.has_attr(stderr='an error occurred', stdout='', returncode=127)
         fake_process.provides('check_returncode').raises(subprocess.CalledProcessError(127, 'foo'))
 
-        assert_that(calling(prov.provision_environment).with_args(site_id, site_name, dns_name),
+        assert_that(calling(prov.provision_environment).with_args(site_id, site_name, dns_name, name, email),
                     raises(subprocess.CalledProcessError))
 
         log = None

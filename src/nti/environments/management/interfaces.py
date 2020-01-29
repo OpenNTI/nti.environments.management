@@ -90,7 +90,7 @@ class IEnvironmentProvisioner(interface.Interface):
     different levels of things we needed to initialize.
     """
 
-    def provision_environment(site_id, site_name, dns_name):
+    def provision_environment(site_id, site_name, dns_name, customer_name, customer_email):
         """
         Setup a new environment for the provided site_id, with the given
         name and dns_name. We expect this is invoked on the machine that
@@ -102,7 +102,7 @@ class IProvisionEnvironmentTask(IApplicationTask):
     The task responsible for setting up an environment.
     """
 
-    def __call__(site_id, site_name, dns_name):
+    def __call__(site_id, site_name, dns_name, name, email):
         """
         Provisions a new dedicated trial environment with the given
         site_id, site_name, and dns_name.
@@ -173,7 +173,7 @@ class ISetupEnvironmentTask(IApplicationTask):
     A composite task that creates and configures an environment.
     """
 
-    def __call__(site_id, site_name, dns_name):
+    def __call__(site_id, site_name, dns_name, name, email):
         """
         Provisions an environment with an IProvisionEnvironmentTask,
         and establishes dns and haproxy configuration with IDNSMappingTask

@@ -98,8 +98,8 @@ class ProvisionEnvironmentTask(AbstractTask):
     NAME = 'provision_env'
     TC = setup_site
 
-    def __call__(self, site_id, site_name, dns_name):
-        return self.task.apply_async((site_id, site_name, dns_name))
+    def __call__(self, site_id, site_name, dns_name, name, email):
+        return self.task.apply_async((site_id, site_name, dns_name, name, email))
 
 
 def mock_task(task, *args, sleep=3, result=None, **kwargs):
@@ -160,14 +160,14 @@ class SetupEnvironmentTask(AbstractTask):
     def join_task(self):
         return self.app.tasks[join_setup_environment_task.__name__]
 
-    def __call__(self, site_id, site_name, dns_name):
+    def __call__(self, site_id, site_name, dns_name, name, email):
         ha = IHaproxyBackendTask(self.app).task
         dns = IDNSMappingTask(self.app).task
         prov = IProvisionEnvironmentTask(self.app).task
 
         ha = ha.s(site_id, dns_name)
         dns = dns.s(dns_name)
-        prov = prov.s(site_id, site_name, dns_name)
+        prov = prov.s(site_id, site_name, dns_name, name, email)
 
         info = SiteInfo(site_id, dns_name)
 
