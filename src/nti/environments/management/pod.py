@@ -43,12 +43,13 @@ def _mock_init_pod_env(task, site_id, site_name, dns_name):
     if should_raise:
         raise Exception('Mock setup failed')
 
-    return '/dataserver2/@@accept-site-invitation?code=mockcode'
+    return 'host1.dev', '/dataserver2/@@accept-site-invitation?code=mockcode'
 
 
 def _init_pod_env(task, site_id, site_name, dns_name):
     provisioner = component.getUtility(IEnvironmentProvisioner)
-    return provisioner.provision_environment(site_id, site_name, dns_name)
+    result = provisioner.provision_environment(site_id, site_name, dns_name)
+    return result['host_system'], result['admin_invitation']
 
 def _pod_root_init_log(podid):
     settings = component.getUtility(ISettings)['pods']
@@ -87,7 +88,7 @@ class EnvironmentProvisioner(object):
 
         stdout = completed_process.stdout
         assert stdout is not None
-        return json.loads(stdout)['admin_invitation']
+        return json.loads(stdout)
 
 def _provisioner_factory():
     settings = component.getUtility(ISettings)

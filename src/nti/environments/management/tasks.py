@@ -115,9 +115,11 @@ def join_setup_environment_task(task, group_result, site_info):
     # Currently the only task in our group that has output we care about is
     # the provision task. It's the last child in the group.
     # TODO how can we reduce the coupling to the group structure.
-    invite = group_result[-1]
+    pod_result = group_result[-1]
+    host, invite = pod_result
     logger.info('Site %s spinup complete.', site_info.site_id)
     site_info.admin_invitation = invite
+    site_info.host = host
     return site_info
 
 @interface.implementer(IInitializedSiteInfo)

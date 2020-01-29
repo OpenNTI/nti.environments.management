@@ -59,11 +59,11 @@ class TestDNS(unittest.TestCase):
                                           encoding='utf-8',
                                           shell=True)
         fake_process = mock_run.returns_fake(name='subprocess.CompletedProcess').is_a_stub()
-        fake_process.has_attr(stderr='foo', stdout='{"admin_invitation": "foo"}', returncode=0)
+        fake_process.has_attr(stderr='foo', stdout='{"admin_invitation": "foo", "host_system": "bar"}', returncode=0)
 
         result = prov.provision_environment(site_id, site_name, dns_name)
 
-        assert_that(result, is_('foo'))
+        assert_that(result, is_({"admin_invitation": "foo", "host_system": "bar"}))
 
         log = None
         with open(logfile, 'r') as f:
