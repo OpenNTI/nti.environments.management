@@ -101,8 +101,6 @@ def setup_routing(app):
     # We send everything through one exchange right now
     default_exchange = Exchange('default', type='direct')
 
-    # Unfortunately we have to have a default queue, even though
-    # we don't want anything dispatched to it. Can we assert this?
     default_queue = Queue('default', default_exchange, routing_key='default')
 
     # Now setup some queues
@@ -135,8 +133,8 @@ def setup_routing(app):
     routes = {}
     
     for taskcls in _bindable_tasks():
-        # If there is no queue that is a programming error
-        assert taskcls.QUEUE
+        if taskcls.QUEUE is None:
+            return
 
         routes[taskcls.NAME] = {
             'queue': taskcls.QUEUE,
@@ -186,11 +184,12 @@ def configure_celery(name='nti.environments.management', settings=None, loader=N
     app = Celery(name, autofinalize=False, set_as_current=False)
 
     app.conf.update(
-        accept_content=["json", "msgpack"],
+        accept_content=["json", "msgpack", "pickle"],
         broker_url=broker_url,
         broker_transport_options=broker_transport_options,
         result_backend=settings["celery.backend_url"],
-        task_serializer="json",
+        task_serializer="pickle",
+        results_serializer="pickle",
         worker_disable_rate_limits=True
     )
     
@@ -225,3 +224,4 @@ def register_tasks(app):
 
     for taskcls in _bindable_tasks():
         taskcls.bind(app)
+    

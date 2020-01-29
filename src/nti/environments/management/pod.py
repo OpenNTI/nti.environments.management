@@ -1,5 +1,6 @@
 import os
 import json
+import time
 
 import subprocess
 
@@ -15,15 +16,40 @@ from .tasks import mock_task
 
 logger = __import__('logging').getLogger(__name__)
 
+_MAX_SLEEP = 120
 
-def _mock_init_pod_env(*args, **kwargs):
-    result = {'admin_invitation': '/dataserver2/@@accept-site-invitation?code=mockcode'}
-    return mock_task(*args, sleep=10, result=result, **kwargs)
+def _mock_init_pod_env(task, site_id, site_name, dns_name):
+    """
+    A mock task that simulates an environment pod being spun up.
+    We let the task caller influence the behaviour of the task by the domain name.
+    We split the subdomain portion by '-'. The last portion, if numeric, defines
+    the amount of time this task should take (in seconds) maxed out at 120. If any
+    part of the split domain contains the word 'Error' an exception will be raised
+    after sleeping.
+    """
+
+    subdomain = dns_name.split('.')[0]
+    parts = subdomain.split('-')
+    try:
+        sleep = min(int(parts[-1]), _MAX_SLEEP)
+    except ValueError:
+        sleep = 10
+
+    should_raise = bool(tuple(filter(lambda x: 'error' in x, parts)))
+
+    logger.info('Mock pod init will finish in %i seconds with success=%s', sleep, should_raise)
+    time.sleep(sleep)
+
+    if should_raise:
+        raise Exception('Mock setup failed')
+
+    return 'host1.dev', '/dataserver2/@@accept-site-invitation?code=mockcode'
 
 
 def _init_pod_env(task, site_id, site_name, dns_name):
     provisioner = component.getUtility(IEnvironmentProvisioner)
-    return provisioner.provision_environment(site_id, site_name, dns_name)
+    result = provisioner.provision_environment(site_id, site_name, dns_name)
+    return result['host_system'], result['admin_invitation']
 
 def _pod_root_init_log(podid):
     settings = component.getUtility(ISettings)['pods']
