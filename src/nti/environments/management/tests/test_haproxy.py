@@ -76,14 +76,14 @@ class TestHaproxy(unittest.TestCase):
             assert_that(lines[-1], is_('foo.nextthot.com S123456789ABCDEF_backend\n'))
 
     @fudge.patch('nti.environments.management.haproxy.reload_haproxy_cfg')
-    def test_configurator(self, mock_reload):        
+    def test_configurator(self, mock_reload):
         configurator = component.getUtility(IHaproxyConfigurator)
 
-        assert_that(configurator.pod_name, is_('tier1haproxy'))
+        assert_that(configurator.admin_socket, is_('/run/haproxy-master.sock'))
         assert_that(configurator.backend_map, is_('/tmp/haproxy/etc/maps/env.map'))
         assert_that(configurator.backends_folder, is_('/tmp/haproxy/etc/'))
 
-        mock_reload.expects_call().with_args(configurator.pod_name)
+        mock_reload.expects_call().with_args(configurator.admin_socket)
 
         configurator.backends_folder = self.folder
         configurator.backend_map = self.mapping
