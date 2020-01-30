@@ -21,7 +21,7 @@ then
     t0=$(aws iam --profile legacy list-users --output json | jq ".Users[] | select(.UserName==\"$pod\")")
     if [ -z "$t0" ]
     then
-        aws iam --profile legacy create-user --user-name $pod
+        aws iam --profile legacy create-user --user-name $pod > /dev/null
     fi
     aws iam --profile legacy create-access-key --user-name $pod > $userfile
     aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTI-SQS-ReadWriteAccess
@@ -37,11 +37,11 @@ mkdir -p $podroot
 
 if [ ! -e "/opt/volumes/$pod.img" ]
 then
-    echo "Creating and initializing data volume for pod $pod"
-    dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=20
-    mkfs.xfs /opt/volumes/$pod.img
-    mount -o loop,rw /opt/volumes/$pod.img $podroot
-    rsync -a /opt/pods/base/ $podroot
+    echo "Creating and initializing data volume for pod $pod" 1>&2
+    dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=20 1>&2
+    mkfs.xfs /opt/volumes/$pod.img 1>&2
+    mount -o loop,rw /opt/volumes/$pod.img $podroot 1>&2
+    rsync --archive --quiet /opt/pods/base/ $podroot 1>&2
     cat /opt/pods/base/dataserver/.boto | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
     cat /opt/pods/base/dataserver/etc/pserve.ini | sed -e "s|\$SMTP_SERVER|$smtpserver|g" -e "s|\$SMTP_USER|$accesskeyid|g" -e "s|\$SMTP_PASSWORD|$smtppass|g" > $podroot/dataserver/etc/pserve.ini
     cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$pod|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$sitehostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
