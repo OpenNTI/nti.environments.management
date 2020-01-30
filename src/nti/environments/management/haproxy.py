@@ -40,6 +40,25 @@ _BACKEND_DEFINITION = r"""backend $SITE_ID_backend
 
 _REPLACEMENT_PATTERN = "$SITE_ID"
 
+_DEFAULT_ADMIN_SOCKET = "/run/haproxy-master.sock"
+
+def send_command(socket_file, command):
+    try:
+        unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        unix_socket.settimeout(0.1)
+        unix_socket.connect(socket_file)
+        unix_socket.send(bytes(command + '\n', 'utf-8'))
+        data = str(unix_socket.recv(65536), 'utf-8')
+    except (socket.timeout):
+        """
+        TODO: Add logic to determine if the lack of response was expected.
+        If it was not expected we need to rethrow the exception.
+        """
+        data = False
+    finally:
+        unix_socket.close()
+    return data
+
 def backend_filename(site_id):
     return f"10-{site_id}.cfg"
 
@@ -81,35 +100,26 @@ def add_backend_mapping(map_location, dns_name, site_id):
     with open(map_location, 'a') as f:
         f.write(f'{dns_name} {site_id}_backend\n')
 
-def reload_haproxy_cfg(haproxy_podname):
+def reload_haproxy_cfg(admin_socket):
     """
-    Reload the haproxy config by sending it a SIGUSR2. It runs
-    inside a pod so we have to use podman.
-
-    Invokes `podman kill --signal=SIGUSR2 <podname>`
-
-    Moving to haproxy 2.0 would allow us to use the api to do this.
+    Reload the haproxy config by sending the reload command over
+    the admin socket.
     """
 
-    logger.info('Sending SIGUSR2 to pod named %s', haproxy_podname)
-    completed_process = subprocess.run(['podman', 'kill', '--signal=SIGUSR2', haproxy_podname],
-                                       check=True,
-                                       shell=True)
-    logger.info('SIGUSR2 sent to pod named %s. Completed with code=(%i)',
-                haproxy_podname, completed_process.returncode)
-    
+    logger.info('Sending \'reload\' command to haproxy master process.')
+    send_command(admin_socket, 'reload')
+    logger.info('\'reload\' command sent.')
 
 @interface.implementer(IHaproxyConfigurator)
 class HAProxyConfigurator(object):
     """
-    An object that can configure haproxy. This is setup right now
-    to work with haproxy 1.8 running in a podman pod.
+    An object that can configure haproxy.
     """
 
-    def __init__(self, backends_folder, backend_map, pod_name):
+    def __init__(self, backends_folder, backend_map, admin_socket=_DEFAULT_ADMIN_SOCKET):
         self.backends_folder = backends_folder
         self.backend_map = backend_map
-        self.pod_name = pod_name   
+        self.admin_socket = admin_socket
     
     def add_backend(self, site_id, dns_name):
         logger.info('Adding haproxy backend for site=(%s) dns_name=(%s)', site_id, dns_name)
@@ -118,16 +128,16 @@ class HAProxyConfigurator(object):
 
     def reload_config(self):
         logger.info('Issuing reload of haproxy config')
-        reload_haproxy_cfg(self.pod_name)
+        reload_haproxy_cfg(self.admin_socket)
 
 def _haproxy_configurator_factory():
     settings = component.getUtility(ISettings)
     haproxy = settings['haproxy']
     haproxy_config_root = haproxy['config_root']
     haproxy_map = os.path.join(haproxy_config_root, 'maps/env.map')
-    pod_name = haproxy['pod_name']
+    admin_socket = haproxy['admin_socket']
 
-    return HAProxyConfigurator(haproxy_config_root, haproxy_map, pod_name)
+    return HAProxyConfigurator(haproxy_config_root, haproxy_map, admin_socket)
 
 def configure_haproxy(task, site_id, dns_name):
     configurator = component.getUtility(IHaproxyConfigurator)
