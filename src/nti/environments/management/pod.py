@@ -31,8 +31,12 @@ def _mock_init_pod_env(task, site_id, site_name, dns_name, customer_name, custom
     subdomain = dns_name.split('.')[0]
     parts = subdomain.split('-')
     try:
-        sleep = min(int(parts[-1]), _MAX_SLEEP)
-    except ValueError:
+        numeric = int(parts[-1])
+        # Normalize between 10 and _MAX_SLEEP seconds
+        b = _MAX_SLEEP
+        a = 10
+        sleep = ((b - a)*(numeric/10000)) + a
+    except (TypeError, ValueError):
         sleep = 10
 
     should_raise = bool(tuple(filter(lambda x: 'error' in x, parts)))
