@@ -50,6 +50,10 @@ def send_command(socket_file, command):
         unix_socket.send(bytes(command + '\n', 'utf-8'))
         data = str(unix_socket.recv(65536), 'utf-8')
     except (socket.timeout):
+        """
+        TODO: Add logic to determine if the lack of response was expected.
+        If it was not expected we need to rethrow the exception.
+        """
         data = False
     finally:
         unix_socket.close()
