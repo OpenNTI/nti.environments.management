@@ -86,7 +86,7 @@ then
       fi
     fi
 #    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
-#    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod
+    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod 1>&2
 else
     start_pod_environment $pod
 fi
