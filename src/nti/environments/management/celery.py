@@ -131,10 +131,10 @@ def setup_routing(app):
     # be the tasks decision, but our tasks are coupled with where they need to run in general
     # so we take the easy approach for now.
     routes = {}
-    
+
     for taskcls in _bindable_tasks():
         if taskcls.QUEUE is None:
-            return
+            continue
 
         routes[taskcls.NAME] = {
             'queue': taskcls.QUEUE,
