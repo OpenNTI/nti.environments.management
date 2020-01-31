@@ -3,7 +3,20 @@
 pod=$1
 podroot=/opt/pods/$pod
 
-podman stop $pod-splunk
-cp -a $podroot/splunk/conf/*.conf $podroot/splunk/etc/system/local/
-cat $podroot/splunk/conf/inputs.conf.in >> $podroot/splunk/etc/system/local/inputs.conf
-podman run --pod=$pod --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/splunk/etc:/opt/splunk/etc:rw --volume $podroot/splunk/var:/opt/splunk/var:rw --env SPLUNK_START_ARGS="--accept-license --answer-yes" --entrypoint '[ "entrypoint.sh", "start-service"]' --name $pod-splunk --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk:latest
+podman container exists $pod-splunk
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+  podman stop $pod-splunk
+  podman container exists $pod-splunk
+  ret=$?
+  until [ "$ret" -eq 1 ]
+  do
+      sleep 1
+      podman container exists $pod-splunk
+      ret=$?
+  done
+  cp -a $podroot/splunk/conf/*.conf $podroot/splunk/etc/system/local/
+  cat $podroot/splunk/conf/inputs.conf.in >> $podroot/splunk/etc/system/local/inputs.conf
+  podman run --pod=$pod --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/splunk/etc:/opt/splunk/etc:rw --volume $podroot/splunk/var:/opt/splunk/var:rw --env SPLUNK_START_ARGS="--accept-license --answer-yes" --entrypoint '[ "entrypoint.sh", "start-service"]' --name $pod-splunk --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk:latest
+fi
