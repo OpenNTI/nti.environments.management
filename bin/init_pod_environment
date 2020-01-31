@@ -15,6 +15,7 @@ then
     mkdir -p /root/pods
 fi
 
+echo "$(date): Initializing $pod environment" 1>&2
 if [ ! -e $userfile ]
 then
     #Check and see if the user exists
@@ -37,7 +38,7 @@ mkdir -p $podroot
 
 if [ ! -e "/opt/volumes/$pod.img" ]
 then
-    echo "Creating and initializing data volume for pod $pod" 1>&2
+    echo "$(date): Creating and initializing data volume for pod $pod" 1>&2
     dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=20 1>&2
     mkfs.xfs /opt/volumes/$pod.img 1>&2
     mount -o loop,rw /opt/volumes/$pod.img $podroot 1>&2
@@ -47,17 +48,17 @@ then
     cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$pod|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$sitehostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     chcon -R  system_u:object_r:container_file_t:s0 $podroot
     start_pod_environment $pod
-    echo -n "Waiting for dataserver socket" 1>&2
+    echo -n "$(date): Waiting for dataserver socket" 1>&2
     until [ -e "$podroot/dataserver/run/dataserver.sock" ]
     do
         echo -n "." 1>&2
         sleep 1
     done
     echo "" 1>&2
-    echo "Dataserver socket available" 1>&2
-    echo "Checking if the dataserver is up." 1>&2
+    echo "$(date): Dataserver socket available" 1>&2
+    echo "$(date): Checking if the dataserver is up." 1>&2
     curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 300 http://localhost/_ops/ping 1>&2
-    echo "The dataserver is accepting requests." 1>&2
+    echo "$(date): The dataserver is accepting requests." 1>&2
 #    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
 #    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod
 else
