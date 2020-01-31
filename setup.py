@@ -9,6 +9,7 @@ with open(os.path.join(here, 'CHANGES.txt')) as f:
     CHANGES = f.read()
 
 requires = [
+    'redis < 3.4.0, >= 3.3.0',
     'celery[redis,sqlalchemy]',
     'zope.interface',
     'zope.component',
