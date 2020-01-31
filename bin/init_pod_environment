@@ -47,8 +47,19 @@ then
     cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$pod|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$sitehostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     chcon -R  system_u:object_r:container_file_t:s0 $podroot
     start_pod_environment $pod
-    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
-    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod
+    echo -n "Waiting for dataserver socket" 1>&2
+    until [ -e "$podroot/dataserver/run/dataserver.sock" ]
+    do
+        echo -n "." 1>&2
+        sleep 1
+    done
+    echo "" 1>&2
+    echo "Dataserver socket available" 1>&2
+    echo "Checking if the dataserver is up." 1>&2
+    curl -sS --unix-socket /opt/pods/S8046f87914ab43f6a19abeb395f81708/dataserver/run/dataserver.sock --max-time 300 http://localhost/_ops/ping 1>&2
+    echo "The dataserver is accepting requests." 1>&2
+#    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
+#    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod
 else
     start_pod_environment $pod
 fi
