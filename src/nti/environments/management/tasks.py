@@ -161,6 +161,8 @@ class SetupEnvironmentTask(AbstractTask):
         return self.app.tasks[join_setup_environment_task.__name__]
 
     def __call__(self, site_id, site_name, dns_name, name, email):
+        dns_name = dns_name.lower()
+        
         ha = IHaproxyBackendTask(self.app).task
         dns = IDNSMappingTask(self.app).task
         prov = IProvisionEnvironmentTask(self.app).task

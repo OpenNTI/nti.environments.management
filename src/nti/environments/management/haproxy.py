@@ -191,6 +191,7 @@ class SetupHAProxyBackend(AbstractTask):
     QUEUE = 'tier1'
 
     def __call__(self, site_id, dns_name):
+        dns_name = dns_name.lower()
         return self.task.apply_async((site_id, dns_name))
 
 

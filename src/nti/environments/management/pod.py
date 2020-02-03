@@ -112,6 +112,7 @@ class ProvisionEnvironmentTask(AbstractTask):
     QUEUE = 'any_host'
 
     def __call__(self, site_id, site_name, dns_name, customer_name, customer_email):
+        dns_name = dns_name.lower()
         return self.task.apply_async((site_id, site_name, dns_name, customer_name, customer_email))
 
 

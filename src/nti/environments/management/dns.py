@@ -66,6 +66,7 @@ class AddDNSMappingTask(AbstractTask):
     QUEUE = 'dns'
 
     def __call__(self, dns_name):
+        dns_name = dns_name.lower()
         return self.task.apply_async((dns_name, ))
 
 
