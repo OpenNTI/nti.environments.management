@@ -74,7 +74,7 @@ class EnvironmentProvisioner(object):
                                            stderr=subprocess.PIPE,
                                            stdout=subprocess.PIPE,
                                            encoding='utf-8',
-                                           shell=True)
+                                           shell=False)
 
         logger.info('Provisioning environment for site=(%s) completed with code=(%i)',
                     site_id, completed_process.returncode)
