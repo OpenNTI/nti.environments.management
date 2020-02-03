@@ -71,7 +71,8 @@ class EnvironmentProvisioner(object):
                     self.script_name, site_id, site_name, dns_name)
         completed_process = subprocess.run([self.script_name, site_id, site_name, dns_name, customer_name, customer_email],
                                            check=False,
-                                           capture_output=True,
+                                           stderr=subprocess.PIPE,
+                                           stdout=subprocess.PIPE,
                                            encoding='utf-8',
                                            shell=True)
     

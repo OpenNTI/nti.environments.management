@@ -57,7 +57,8 @@ class TestDNS(unittest.TestCase):
 
         mock_run.expects_call().with_args([prov.script_name, site_id, site_name, dns_name, name, email],
                                           check=False,
-                                          capture_output=True,
+                                          stdin=subprocess.PIPE,
+                                          stdout=subprocess.PIPE,
                                           encoding='utf-8',
                                           shell=True)
         fake_process = mock_run.returns_fake(name='subprocess.CompletedProcess').is_a_stub()
@@ -93,8 +94,9 @@ class TestDNS(unittest.TestCase):
 
         # Now if instead we return a non 0 exit code, we get a log still but also an exception is raised
         mock_run.expects_call().with_args([prov.script_name, site_id, site_name, dns_name, name, email],
-                                          check=False,
-                                          capture_output=True,
+                                          check=False,                                        
+                                          stdin=subprocess.PIPE,
+                                          stdout=subprocess.PIPE,
                                           encoding='utf-8',
                                           shell=True)
         fake_process = mock_run.returns_fake(name='subprocess.CompletedProcess').is_a_stub()
