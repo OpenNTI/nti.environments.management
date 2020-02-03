@@ -75,18 +75,18 @@ class EnvironmentProvisioner(object):
                                            stdout=subprocess.PIPE,
                                            encoding='utf-8',
                                            shell=True)
+
+        logger.info('Provisioning environment for site=(%s) completed with code=(%i)',
+                    site_id, completed_process.returncode)
+
+        for line in completed_process.stderr.splitlines():
+            logger.debug('%s for site=(%s) produced output: %s', self.script_name, site_id, line)
     
         # Capture any logging on stderr and write it to our log file
         # This probably shouldn't fail if setup actually succeeded. Do
         # we want a failure here to fail the setup and the entire job?
         with open(_pod_root_init_log(site_id), 'x') as f:
             f.write(completed_process.stderr)
-
-        for line in completed_process.stderr.splitlines():
-            logger.debug('%s for site=(%s) produced output: %s', self.script_name, site_id, line)
-
-        logger.info('Provisioning environment for site=(%s) completed with code=(%i)',
-                    site_id, completed_process.returncode)
 
         # Check out return code which will raise if things failed
         completed_process.check_returncode()
