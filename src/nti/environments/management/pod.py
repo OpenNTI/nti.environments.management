@@ -85,8 +85,13 @@ class EnvironmentProvisioner(object):
         # Capture any logging on stderr and write it to our log file
         # This probably shouldn't fail if setup actually succeeded. Do
         # we want a failure here to fail the setup and the entire job?
-        with open(_pod_root_init_log(site_id), 'x') as f:
-            f.write(completed_process.stderr)
+        try:
+            log_location = _pod_root_init_log(site_id)
+            with open(log_location, 'x') as f:
+                f.write(completed_process.stderr)
+        except OSError:
+            logger.exception('Unable to write log file to %s.', log_location)
+            raise
 
         # Check out return code which will raise if things failed
         completed_process.check_returncode()
