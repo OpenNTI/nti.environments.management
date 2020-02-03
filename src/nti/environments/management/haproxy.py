@@ -9,6 +9,8 @@ import socket
 
 from celery import group
 
+from dns.resolver import query as dnsresolver
+
 from zope import component
 
 from zope import interface
@@ -19,7 +21,6 @@ from zope.configuration import config
 from zope.configuration import xmlconfig
 
 from zope.dottedname import resolve as dottedname
-
 
 from .interfaces import IHaproxyBackendTask
 from .interfaces import IHaproxyConfigurator
@@ -141,7 +142,40 @@ def _haproxy_configurator_factory():
 
     return HAProxyConfigurator(haproxy_config_root, haproxy_map, admin_socket)
 
-def configure_haproxy(task, site_id, dns_name):
+class InternalDNSNotReady(Exception):
+    """
+    Raised when the internal dns name is not ready
+    """
+    pass
+
+def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wait=15):
+    """
+    Generate the haproxy backend and reload the configuration. Note
+    that the internal poddns name must exist for this to work. We expect
+    that to have completed before we are called or shortly after.
+
+    TODO Ideally we would make this job dependent on the job generating
+    that dns entry, but that is the pod creation job. It happens right towards the
+    beginning so we just wait. Sloppy, but we don't want to wait the 90 seconds
+    for that job and it's not easy to extract the dns task to it's own job that happens
+    before everything.
+    """
+    internal_dns_name = site_id + '.nti'
+
+    def _check_internal_dns():
+        try:
+            return not bool(dnsresolver(internal_dns_name))
+        except NXDOMAIN:
+            return True
+
+
+    elapsed = 0
+    while not _check_internal_dns():
+        time.sleep(dns_check_interval)
+        elapsed += dns_check_interval
+        if elapsed >= dns_max_wait:
+            raise InternalDNSNotReady('Internal dns %s not found after %i seconds' % (internal_dns_name, dns_max_wait))
+            
     configurator = component.getUtility(IHaproxyConfigurator)
     configurator.add_backend(site_id, dns_name)
     configurator.reload_config()
