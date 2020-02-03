@@ -6,6 +6,36 @@ siteHostname=$3
 adminName=$4
 adminEmail=$5
 
+if [ -z "$pod" ]
+then
+  echo "$(date): ABORT! no pod id specified." 1>&2
+  exit 11
+fi
+
+if [ -z "sitename" ]
+then
+  echo "$(date): ABORT! no site name specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$siteHostname" ]
+then
+  echo "$(date): ABORT! no site hostname specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$adminName" ]
+then
+  echo "$(date): ABORT! no admin name specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$adminEmail" ]
+then
+  echo "$(date): ABORT! no admin email specified." 1>&2
+  exit 11
+fi
+
 smtpserver=email-smtp.us-east-1.amazonaws.com
 
 JQ=$(which jq)
