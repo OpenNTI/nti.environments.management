@@ -163,15 +163,15 @@ def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wai
     """
     internal_dns_name = site_id + '.nti'
 
-    def _check_internal_dns():
+    def _check_internal_dns_up():
         try:
-            return not bool(dnsresolver(internal_dns_name))
+            return bool(dnsresolver(internal_dns_name))
         except NXDOMAIN:
-            return True
+            return False
 
 
     elapsed = 0
-    while not _check_internal_dns():
+    while not _check_internal_dns_up():
         time.sleep(dns_check_interval)
         elapsed += dns_check_interval
         if elapsed >= dns_max_wait:
