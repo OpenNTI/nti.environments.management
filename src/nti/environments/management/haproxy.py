@@ -10,6 +10,7 @@ import socket
 from celery import group
 
 from dns.resolver import query as dnsresolver
+from dns.resolver import NXDOMAIN
 
 from zope import component
 
