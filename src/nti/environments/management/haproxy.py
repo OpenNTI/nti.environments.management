@@ -149,7 +149,7 @@ class InternalDNSNotReady(Exception):
     """
     pass
 
-def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wait=15):
+def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wait=30):
     """
     Generate the haproxy backend and reload the configuration. Note
     that the internal poddns name must exist for this to work. We expect
