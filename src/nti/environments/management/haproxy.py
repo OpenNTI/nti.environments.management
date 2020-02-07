@@ -46,10 +46,10 @@ _REPLACEMENT_PATTERN = "$SITE_ID"
 
 _DEFAULT_ADMIN_SOCKET = "/run/haproxy-master.sock"
 
-def send_command(socket_file, command):
+def send_command(socket_file, command, read_timeout=1):
     try:
         unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        unix_socket.settimeout(0.1)
+        unix_socket.settimeout(read_timeout)
         unix_socket.connect(socket_file)
         unix_socket.send(bytes(command + '\n', 'utf-8'))
         data = str(unix_socket.recv(65536), 'utf-8')
@@ -104,15 +104,96 @@ def add_backend_mapping(map_location, dns_name, site_id):
     with open(map_location, 'a') as f:
         f.write(f'{dns_name} {site_id}_backend\n')
 
+class HAProxyCommandException(Exception):
+    """
+    Raised if an error occurs communicating with haproxy
+    """
+
+def check_haproxy_status_output(output):
+    """
+    Given output from haproxy proc status, parse to see if the config was reloaded
+    succesfully. We're looking for an entry of type 'worker' with a relative pid of 1
+    and reloads of 0.
+
+    #<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>
+    8               master          0               82              9d00h27m02s     2.1.1
+    # workers
+    1017            worker          1               0               0d00h01m28s     2.1.1
+    # old workers
+    657             worker          [was: 1]        17              0d05h35m30s     2.1.1
+    # programs
+
+    A failed reload looks like this:
+
+    #<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>      
+    8               master          0               27              5d22h03m17s     2.1.1          
+    # workers
+    # old workers
+    177             worker          [was: 1]        14              0d20h36m10s     2.1.1          
+    105             worker          [was: 1]        19              0d21h32m50s     2.1.1          
+    # programs
+
+    Notice no non-old workers
+
+    """
+
+    # The format here is aweful. were looking for something in the workers section
+
+    in_workers=False
+    workers = []
+    for line in output.split('\n'):
+        if line.startswith('# workers'):
+            # At the start of the workers section. If we saw this already that's output
+            # we didn't expect
+            if in_workers:
+                raise HAProxyCommandException('Unexpected "workers" section')
+            in_workers = True
+            continue
+
+        if in_workers:
+            # if we encounter a new section and we are in workers, that means we reached
+            # the end of workers and need to exit
+            if line.startswith('#'):
+                break
+            else:
+                #Found a worker
+                worker = line.split()
+                if len(worker) != 6:
+                    raise HAProxyCommandException('Encoutered worker line of unexpected format. %i columns not 6' % len(worker))
+                workers.append(line.split())
+        # Not in workers so ignore
+
+    if len(workers) < 1:
+        # No workers on the new config.
+        raise HAProxyCommandException('Reload Failed. No workers on new config')
+
+    # TODO it's unclear if we need to check reload count
+    
+    return True
+        
+
 def reload_haproxy_cfg(admin_socket):
     """
     Reload the haproxy config by sending the reload command over
     the admin socket.
     """
-
     logger.info('Sending \'reload\' command to haproxy master process.')
     send_command(admin_socket, 'reload')
     logger.info('\'reload\' command sent.')
+    
+    # The damn reload command gives zero feedback in the success or failure
+    # case. So now try to get the proc status and figure out if things
+    # were restarted. Again, we're run serially so were are hand waving around
+    # a ton of syncronization issues.
+    logger.info('Sending \'show proc\' command to haproxy master process.')
+    output = send_command(admin_socket, 'show proc')
+    logger.info('\'show proc\' command sent.')
+
+    try:
+        check_haproxy_status_output(output)
+    except HAProxyCommandException as e:
+        logger.exception('HAProxy Reload failed')
+        raise HAProxyCommandException('Haproxy reload failed: %s', e)
 
 @interface.implementer(IHaproxyConfigurator)
 class HAProxyConfigurator(object):
