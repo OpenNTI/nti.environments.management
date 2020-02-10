@@ -60,3 +60,34 @@ function mount_pod (){
     echo "$(date): $pod data volume already mounted"
   fi
 }
+
+function create_pod (){
+  pod=$1
+
+  podman pod exists $pod
+  ret=$?
+  if [ "$ret" -eq 1 ]
+  then
+    echo "$(date): Creating $pod pod"
+    podman pod create --name $pod --hostname $pod.nti
+    ret=$?
+    if [ $ret -eq 0 ]
+    then
+      podman pod start $pod
+      ret=$?
+      if [ $ret -eq 0 ]
+      then
+        add_CNAME $pod
+      else
+        echo "$(date): ABORT! Failed to start pod $pod."
+        return 15
+      fi
+    else
+      echo "$(date): ABORT! Failed to create pod $pod."
+      return 14
+    fi
+  fi
+
+  
+
+}

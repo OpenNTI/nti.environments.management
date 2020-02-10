@@ -8,16 +8,12 @@ podroot=/opt/pods/$pod
 
 echo "$(date): Starting $pod environment" 1>&2
 
-podman pod exists $pod
+create_pod $pod 1>&2
 ret=$?
-if [ "$ret" -eq 1 ]
+if [ ! "$ret" -eq 0 ]
 then
-  echo "$(date): Creating $pod pod" 1>&2
-  podman pod create --name $pod --hostname $pod.nti 1>&2
-  podman pod start $pod 1>&2
+  exit $ret
 fi
-
-add_CNAME $pod 1>&2
 
 mount_pod $pod $podroot 1>&2
 ret=$?
