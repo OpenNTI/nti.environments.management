@@ -29,6 +29,16 @@ do
     fi
 done
 
+for container in $CONTAINERS
+do
+    podman container exists $container
+    ret=$?
+    if [ "$ret" -eq 0 ]
+    then
+        podman rm $container
+    fi
+done
+
 podman container exists $pod-dataserver
 ret=$?
 until [ "$ret" -eq 1 ]
