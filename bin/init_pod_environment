@@ -5,6 +5,7 @@ sitename=$2
 siteHostname=$3
 adminName=$4
 adminEmail=$5
+extra=$6
 
 if [ -z "$pod" ]
 then
@@ -35,6 +36,14 @@ then
   echo "$(date): ABORT! no admin email specified." 1>&2
   exit 11
 fi
+
+if [ ! -z "$extra" ]
+then
+  echo "$(date): ABORT! extra args detected." 1>&2
+  exit 12
+fi
+
+echo $(/usr/bin/env) 1>&2
 
 smtpserver=email-smtp.us-east-1.amazonaws.com
 
@@ -87,6 +96,12 @@ then
     cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$pod|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$siteHostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     chcon -R  system_u:object_r:container_file_t:s0 $podroot
     start_pod_environment $pod
+    ret=$?
+    if [ ! "$ret" -eq 0 ]
+    then
+      echo "$(date): $pod environment startup failed" 1>&2
+      exit $ret
+    fi
     echo -n "$(date): Waiting for dataserver socket" 1>&2
     until [ -e "$podroot/dataserver/run/dataserver.sock" ]
     do

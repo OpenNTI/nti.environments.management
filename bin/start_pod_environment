@@ -68,7 +68,16 @@ then
     chcon -R  system_u:object_r:container_file_t:s0 "$podroot/dataserver/run"
   fi
   podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
-  echo "$(date): $pod-dataserver container running" 1>&2
+  ret=$?
+  if [ "$ret" -eq 0 ]
+  then
+    echo "$(date): $pod-dataserver container running" 1>&2
+  else
+    echo "$(date): ABORT! Failed to start $pod-dataserver" 1>&2
+    echo "$(date): Cleaning up $pod-dataserver."
+    podman rm $pod-dataserver 1>&2
+    exit 13
+  fi
 fi
 
 podman container exists $pod-redis
