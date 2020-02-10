@@ -134,4 +134,10 @@ then
     systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod 1>&2
 else
     start_pod_environment $pod
+    ret=$?
+    if [ ! "$ret" -eq 0 ]
+    then
+      echo "$(date): $pod environment startup failed" 1>&2
+      exit $ret
+    fi
 fi
