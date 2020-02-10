@@ -82,14 +82,18 @@ accesskeyid=$(echo $accesskey | jq .AccessKey.AccessKeyId | sed -e 's|"||g')
 secretaccesskey=$(echo $accesskey | jq .AccessKey.SecretAccessKey | sed -e 's|"||g')
 smtppass=$(computeSEScreds --region us-east-1 --secret $secretaccesskey)
 podroot=/opt/pods/$pod
-mkdir -p $podroot
 
 if [ ! -e "/opt/volumes/$pod.img" ]
 then
     echo "$(date): Creating and initializing data volume for pod $pod" 1>&2
     dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=20 1>&2
     mkfs.xfs /opt/volumes/$pod.img 1>&2
-    mount -o loop,rw /opt/volumes/$pod.img $podroot 1>&2
+    mount_pod $pod $podroot 1>&2
+    ret=$?
+    if [ ! "$ret" -eq 0 ]
+    then
+      exit $ret
+    fi
     rsync --archive --quiet /opt/pods/base/ $podroot 1>&2
     cat /opt/pods/base/dataserver/.boto | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
     cat /opt/pods/base/dataserver/etc/pserve.ini | sed -e "s|\$SMTP_SERVER|$smtpserver|g" -e "s|\$SMTP_USER|$accesskeyid|g" -e "s|\$SMTP_PASSWORD|$smtppass|g" > $podroot/dataserver/etc/pserve.ini

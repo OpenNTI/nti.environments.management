@@ -1,37 +1,12 @@
 #!/bin/bash
 
-pod=$1
-
 source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
-echo "$(date): Starting $pod environment" 1>&2
-
+pod=$1
 podroot=/opt/pods/$pod
-if [ ! -e "$podroot" ]
-then
-  echo "$(date): Creating $podroot" 1>&2
-  mkdir -p $podroot/
-fi
 
-t0=$(grep -e "$podroot" /proc/mounts)
-if [ -z "$t0" ]
-then
-  if [ -e "/opt/volumes/$pod.img" ]
-  then
-    echo "$(date): Mounting $podroot" 1>&2
-    mount -o loop,rw /opt/volumes/$pod.img $podroot 1>&2
-    ret=$?
-    if [ $ret -ne 0 ]
-    then
-        echo "$(date): ABORT! Attempt to mount $pod data volume failed" 1>&2
-        exit 7
-    fi
-  else
-    echo "$(date): ABORT! $pod data volume missing" 1>&2
-    exit 6
-  fi
-fi
+echo "$(date): Starting $pod environment" 1>&2
 
 podman pod exists $pod
 ret=$?
@@ -43,6 +18,13 @@ then
 fi
 
 add_CNAME $pod 1>&2
+
+mount_pod $pod $podroot 1>&2
+ret=$?
+if [ ! "$ret" -eq 0 ]
+then
+  exit $ret
+fi
 
 podman container exists $pod-dataserver
 ret=$?

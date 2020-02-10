@@ -30,3 +30,33 @@ send
 quit
 EOF
 }
+
+function mount_pod (){
+  pod=$1
+  podroot=$2
+  t0=$(grep -e "$podroot" /proc/mounts)
+  if [ -z "$t0" ]
+  then
+    if [ -e "/opt/volumes/$pod.img" ]
+    then
+      if [ ! -e "$podroot" ]
+      then
+        echo "$(date): Creating $podroot"
+        mkdir -p $podroot/
+      fi
+      echo "$(date): Mounting $podroot"
+      mount -o loop,rw /opt/volumes/$pod.img $podroot
+      ret=$?
+      if [ $ret -ne 0 ]
+      then
+          echo "$(date): ABORT! Attempt to mount $pod data volume failed"
+          return 7
+      fi
+    else
+      echo "$(date): ABORT! $pod data volume missing"
+      return 6
+    fi
+  else
+    echo "$(date): $pod data volume already mounted"
+  fi
+}
