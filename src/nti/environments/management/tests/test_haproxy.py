@@ -1,6 +1,8 @@
 from hamcrest import assert_that
+from hamcrest import calling
 from hamcrest import has_length
 from hamcrest import is_
+from hamcrest import raises
 
 import fudge
 
@@ -16,7 +18,10 @@ from . import SharedConfiguringTestLayer
 
 from ..haproxy import add_backend_mapping
 from ..haproxy import backend_filename
+from ..haproxy import check_haproxy_status_output
 from ..haproxy import write_backend
+from ..haproxy import HAProxyCommandException
+from ..haproxy import reload_haproxy_cfg
 
 from ..interfaces import IHaproxyConfigurator
 
@@ -30,6 +35,25 @@ _EXPECTED_BACKED = r"""backend S123456789ABCDEF_backend
     option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ localhost
 
     server node1 S123456789ABCDEF.nti:8086 weight 1 send-proxy
+"""
+
+GOOD_RELOAD_OUTPUT = """#<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>
+8               master          0               82              9d00h27m02s     2.1.1
+# workers
+1017            worker          1               0               0d00h01m28s     2.1.1
+# old workers
+657             worker          [was: 1]        17              0d05h35m30s     2.1.1
+# programs
+
+"""
+
+BAD_RELOAD_OUTPUT = """#<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>
+8               master          0               82              9d00h27m02s     2.1.1
+# workers
+# old workers
+657             worker          [was: 1]        17              0d05h35m30s     2.1.1
+# programs
+
 """
 
 class TestHaproxy(unittest.TestCase):
@@ -100,6 +124,22 @@ class TestHaproxy(unittest.TestCase):
             contents = f.read()
 
         assert_that(contents, is_(_EXPECTED_BACKED))
+
+    def test_show_proc_check(self):
+        assert_that(check_haproxy_status_output(GOOD_RELOAD_OUTPUT), is_(True))
+        assert_that(calling(check_haproxy_status_output).with_args(BAD_RELOAD_OUTPUT),
+                    raises(HAProxyCommandException))
+
+    @fudge.patch('nti.environments.management.haproxy.send_command')
+    def test_badreload_raises_in_task(self, mock_send_command):
+        socket = ''
+
+        mock_send_command.is_callable().with_args(socket, 'reload')
+        mock_send_command.next_call().with_args(socket, 'show proc').returns(BAD_RELOAD_OUTPUT)
+
+        assert_that(calling(reload_haproxy_cfg).with_args(socket), raises(HAProxyCommandException))
+        
+        
 
         
         
