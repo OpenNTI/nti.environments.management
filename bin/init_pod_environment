@@ -4,6 +4,7 @@ source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
+siteID=$(echo $pod | tr [:upper:] [:lower:])
 sitename=$2
 siteHostname=$3
 adminName=$4
@@ -107,7 +108,7 @@ then
     rsync --archive --quiet /opt/pods/base/ $podroot 1>&2
     cat /opt/pods/base/dataserver/.boto | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
     cat /opt/pods/base/dataserver/etc/pserve.ini | sed -e "s|\$SMTP_SERVER|$smtpserver|g" -e "s|\$SMTP_USER|$accesskeyid|g" -e "s|\$SMTP_PASSWORD|$smtppass|g" > $podroot/dataserver/etc/pserve.ini
-    cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$pod|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$siteHostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
+    cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$siteID|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$siteHostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     chcon -R  system_u:object_r:container_file_t:s0 $podroot
 
     start_pod_environment $pod
