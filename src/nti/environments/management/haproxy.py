@@ -64,7 +64,7 @@ def send_command(socket_file, command, read_timeout=1):
     return data
 
 def backend_filename(site_id):
-    return f"10-{site_id}.cfg"
+    return "10-{site_id}.cfg"
 
 def write_backend(site_id, folder):
     """
@@ -125,12 +125,12 @@ def check_haproxy_status_output(output):
 
     A failed reload looks like this:
 
-    #<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>      
-    8               master          0               27              5d22h03m17s     2.1.1          
+    #<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>
+    8               master          0               27              5d22h03m17s     2.1.1
     # workers
     # old workers
-    177             worker          [was: 1]        14              0d20h36m10s     2.1.1          
-    105             worker          [was: 1]        19              0d21h32m50s     2.1.1          
+    177             worker          [was: 1]        14              0d20h36m10s     2.1.1
+    105             worker          [was: 1]        19              0d21h32m50s     2.1.1
     # programs
 
     Notice no non-old workers
@@ -168,9 +168,9 @@ def check_haproxy_status_output(output):
         raise HAProxyCommandException('Reload Failed. No workers on new config')
 
     # TODO it's unclear if we need to check reload count
-    
+
     return True
-        
+
 
 def reload_haproxy_cfg(admin_socket):
     """
@@ -180,7 +180,7 @@ def reload_haproxy_cfg(admin_socket):
     logger.info('Sending \'reload\' command to haproxy master process.')
     send_command(admin_socket, 'reload')
     logger.info('\'reload\' command sent.')
-    
+
     # The damn reload command gives zero feedback in the success or failure
     # case. So now try to get the proc status and figure out if things
     # were restarted. Again, we're run serially so were are hand waving around
@@ -205,7 +205,7 @@ class HAProxyConfigurator(object):
         self.backends_folder = backends_folder
         self.backend_map = backend_map
         self.admin_socket = admin_socket
-    
+
     def add_backend(self, site_id, dns_name):
         logger.info('Adding haproxy backend for site=(%s) dns_name=(%s)', site_id, dns_name)
         write_backend(site_id, self.backends_folder)
@@ -257,7 +257,7 @@ def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wai
         elapsed += dns_check_interval
         if elapsed >= dns_max_wait:
             raise InternalDNSNotReady('Internal dns %s not found after %i seconds' % (internal_dns_name, dns_max_wait))
-            
+
     configurator = component.getUtility(IHaproxyConfigurator)
     configurator.add_backend(site_id, dns_name)
     configurator.reload_config()

@@ -82,7 +82,6 @@ class AbstractTask(object):
         return SimpleTaskState(async_result.id)
 
 
-
 def setup_site(task, site_id, site_name, hostname, **options):
     """
     Given a site_id, site_name, and hostname spin up an environment.
@@ -98,6 +97,7 @@ def setup_site(task, site_id, site_name, hostname, **options):
                                stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     return json.loads(stdout.decode('utf-8'))
+
 
 @interface.implementer(IProvisionEnvironmentTask)
 class ProvisionEnvironmentTask(AbstractTask):
@@ -141,14 +141,13 @@ def _do_ping_site(url, site_id, timeout=1):
 
 
 def _ping_url(site_info):
-    return urlunparse(('https', site_info.dns_name, '/dataserver2/logon.ping'))
+    return 'https://%s/dataserver2/logon.ping' % site_info.dns_name
 
 
 def _do_verify_site(site_info, timeout=2, tries=5, wait=1):
     """
     Verify the created site is accessible.
     """
-
     attempts = 0
     verified = False
     last_exception = None
@@ -212,7 +211,8 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
         try:
             valid = _do_verify_site(site_info)
             if valid:
-                logger.info('Site verification for site %s completed succesfully', site_info.site_id)
+                logger.info('Site verification for site %s completed successfully',
+                            site_info.site_id)
         except SiteVerificationException:
             logger.exception('Site verification failed')
             raise
