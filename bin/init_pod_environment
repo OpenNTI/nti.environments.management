@@ -136,7 +136,7 @@ then
     else
       echo "$(date): The dataserver is accepting requests." 1>&2
       echo "$(date): Creating admin invite." 1>&2
-      invite_args=$("$JQ" --null-input "{invitations: [{receiver: \"$adminEmail\",receiver_name: \"$adminName\"}], MimeType: \"application/vnd.nextthought.siteinvitation\"}")
+      invite_args=$("$JQ" --null-input "{invitations: [{receiver: \"$adminEmail\",receiver_name: \"$adminName\"}], MimeType: \"application/vnd.nextthought.siteadmininvitation\"}")
 #      invite=$(podman exec $pod-dataserver /home/ntiuser/buildout/bin/nti_invite_user "$adminEmail" "$siteHostname" --realname "$adminName" --admin --json 2>/dev/null)
       admin_key=$(cat $podroot/dataserver/data/.admin.key)
       invite=$(curl -v --unix-socket $podroot/dataserver/run/dataserver.sock --header "Authorization:Bearer $admin_key" --header "X-Requested-With:XMLHttpRequest" --header "Content-Type: application/json" --header "Host: $siteID" --request POST "http://$siteID/dataserver2/Invitations/@@create-site-invitation" --data "$invite_args")
