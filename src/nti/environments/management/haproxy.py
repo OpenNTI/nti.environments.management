@@ -64,7 +64,7 @@ def send_command(socket_file, command, read_timeout=1):
     return data
 
 def backend_filename(site_id):
-    return "10-{site_id}.cfg"
+    return f"10-{site_id}.cfg"
 
 def write_backend(site_id, folder):
     """
