@@ -184,11 +184,10 @@ def reload_haproxy_cfg(admin_socket, check_reload=True):
     # The damn reload command gives zero feedback in the success or failure
     # case. So now try to get the proc status and figure out if things
     # were restarted. Again, we're run serially so were are hand waving around
-    # a ton of syncronization issues.
+    # a ton of synchronization issues.
 
     if check_reload:
-
-        # The afore mentioned reload command also puts the socket in a wierd state
+        # The afore mentioned reload command also puts the socket in a weird state
         # for a very short time afterwards as well. For now we will just sleep for
         # a short fixed amount of time and hope that works.
         time.sleep(0.2)
@@ -201,7 +200,7 @@ def reload_haproxy_cfg(admin_socket, check_reload=True):
             check_haproxy_status_output(output)
         except HAProxyCommandException as e:
             logger.exception('HAProxy Reload failed')
-        return raise HAProxyCommandException('Haproxy reload failed: %s', e)
+            raise HAProxyCommandException('Haproxy reload failed: %s', e)
 
 @interface.implementer(IHaproxyConfigurator)
 class HAProxyConfigurator(object):
