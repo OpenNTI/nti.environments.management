@@ -10,6 +10,13 @@ import subprocess
 import json
 import functools
 
+import requests
+
+from requests.exceptions import ConnectionError
+from requests.exceptions import HTTPError
+
+from urllib.parse import urlunparse
+
 from celery import group
 
 from celery.result import AsyncResult
@@ -63,7 +70,7 @@ class AbstractTask(object):
         """
         task_id = state.task_id
         return AsyncResult(task_id, app=app)
-        
+
 
     def save_task(async_result):
         """
@@ -74,7 +81,6 @@ class AbstractTask(object):
         """
         return SimpleTaskState(async_result.id)
 
-    
 
 def setup_site(task, site_id, site_name, hostname, **options):
     """
@@ -92,6 +98,7 @@ def setup_site(task, site_id, site_name, hostname, **options):
     stdout, stderr = process.communicate()
     return json.loads(stdout.decode('utf-8'))
 
+
 @interface.implementer(IProvisionEnvironmentTask)
 class ProvisionEnvironmentTask(AbstractTask):
 
@@ -106,7 +113,85 @@ def mock_task(task, *args, sleep=3, result=None, **kwargs):
     time.sleep(sleep)
     return result
 
-def join_setup_environment_task(task, group_result, site_info):
+class SiteVerificationException(Exception):
+    """
+    Raised when a verification error is encountered for a setup site.
+    """
+    pass
+
+class SiteVerificationTimeout(SiteVerificationException):
+    """
+    Raised when we cannont verify the site is setup before a timeout
+    """
+    pass
+
+
+def _do_ping_site(url, site_id, timeout=1):
+    resp = requests.get(url, timeout=timeout)
+
+    resp.raise_for_status()
+
+    pong = resp.json()
+
+    pinged_site = pong.get('Site', None)
+    if pinged_site != site_id:
+        raise SiteVerificationException('Site verification error. Expected site %s but found %s' % (site_id, pinged_site))
+
+    return pong
+
+
+def _ping_url(site_info):
+    return 'https://%s/dataserver2/logon.ping' % site_info.dns_name
+
+
+def _do_verify_site(site_info, timeout=2, tries=5, wait=1):
+    """
+    Verify the created site is accessible.
+    """
+    attempts = 0
+    verified = False
+    last_exception = None
+    site_id = site_info.site_id
+    url = _ping_url(site_info)
+    while attempts < tries:
+        try:
+            pong = _do_ping_site(url, site_id, timeout=timeout)
+            if pong:
+                verified = True
+                break
+        except ConnectionError as e:
+            # A retriable error, we couldn't connect to the site.
+            # Possibly dns hasn't propogated
+            last_exception = e
+            logger.debug('ConnectionError when verifying site. %s', e)
+        except HTTPError as e:
+            # Some HTTPErrors we want to catch and retry on
+            # for example a 503, that's likely indicative of a backend
+            # that isn't up.
+            # TODO the environment spin up is waiting on this currently
+            # so if we still are getting this here we may not want to retry.
+            last_exception = e
+            code = e.response.status_code
+
+            logger.debug('HTTPError when verifying site. %s', e)
+            if code == 503 or code == 404:
+                pass
+            else:
+                logger.exception('An error occurred when verifying site')
+                raise SiteVerificationException('Unable to verify site. %s' % e)
+
+        attempts += 1
+        time.sleep(wait)
+
+    if not verified:
+        if last_exception is not None:
+            raise SiteVerificationException('Unable to verify site. %s' % last_exception)
+        raise SiteVerificationTimeout()
+
+    return True
+
+
+def join_setup_environment_task(task, group_result, site_info, verify_site=True):
     """
     Given a group result for a site setup, complete the site_info object
     and return it. This tasks acts as a chord callback for the group
@@ -120,7 +205,22 @@ def join_setup_environment_task(task, group_result, site_info):
     logger.info('Site %s spinup complete.', site_info.site_id)
     site_info.admin_invitation = invite
     site_info.host = host
+
+    if verify_site:
+        logger.info('Performing site verification for site %s', site_info.site_id)
+        try:
+            valid = _do_verify_site(site_info)
+            if valid:
+                logger.info('Site verification for site %s completed successfully',
+                            site_info.site_id)
+        except SiteVerificationException:
+            logger.exception('Site verification failed')
+            raise
+    else:
+        logger.warn('Bypassing site verification. Devmode?')
+
     return site_info
+
 
 @interface.implementer(IInitializedSiteInfo)
 class SiteInfo(object):
@@ -134,6 +234,7 @@ class SiteInfo(object):
         self.site_id = site_id
         self.dns_name = dns_name
 
+
 class SetupTaskState(SimpleTaskState):
     """
     In addition to the basic task information,
@@ -145,6 +246,7 @@ class SetupTaskState(SimpleTaskState):
     def __init__(self, task_id, group_id):
         self.task_id = task_id
         self.group_id = group_id
+
 
 @interface.implementer(ISetupEnvironmentTask)
 class SetupEnvironmentTask(AbstractTask):
@@ -162,7 +264,7 @@ class SetupEnvironmentTask(AbstractTask):
 
     def __call__(self, site_id, site_name, dns_name, name, email):
         dns_name = dns_name.lower()
-        
+
         ha = IHaproxyBackendTask(self.app).task
         dns = IDNSMappingTask(self.app).task
         prov = IProvisionEnvironmentTask(self.app).task
@@ -186,7 +288,7 @@ class SetupEnvironmentTask(AbstractTask):
 
         parent = GroupResult.restore(group_id, app=self.app)
         return AsyncResult(task_id, parent=parent, app=self.app)
-        
+
 
     def save_task(self, async_result):
         """
@@ -198,9 +300,9 @@ class SetupEnvironmentTask(AbstractTask):
         async_result.parent.save()
         return SetupTaskState(async_result.id, async_result.parent.id)
 
-def main():    
+def main():
     from .worker import app
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=False)
     args = parser.parse_args()

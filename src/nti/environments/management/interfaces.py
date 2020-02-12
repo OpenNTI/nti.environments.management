@@ -43,7 +43,7 @@ class IAsyncResult(interface.Interface):
         """
         Return :const:`True` if the task executed successfully.
         """
-    
+
 
 class IApplicationTask(interface.Interface):
     """
@@ -120,6 +120,7 @@ class IHaproxyBackendTask(IApplicationTask):
         backend and mapping.
         """
 
+
 class IHaproxyConfigurator(interface.Interface):
     """
     An object capable of configuring haproxy
@@ -156,6 +157,7 @@ class IDNSAliasRecordCreator(interface.Interface):
         """
         Add an alias for the following dns name
         """
+
 
 class IInitializedSiteInfo(interface.Interface):
 
