@@ -248,22 +248,6 @@ def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wai
     for that job and it's not easy to extract the dns task to it's own job that happens
     before everything.
     """
-    internal_dns_name = site_id + '.nti'
-
-    def _check_internal_dns_up():
-        try:
-            return bool(dnsresolver(internal_dns_name))
-        except NXDOMAIN:
-            return False
-
-
-    elapsed = 0
-    while not _check_internal_dns_up():
-        time.sleep(dns_check_interval)
-        elapsed += dns_check_interval
-        if elapsed >= dns_max_wait:
-            raise InternalDNSNotReady('Internal dns %s not found after %i seconds' % (internal_dns_name, dns_max_wait))
-
     configurator = component.getUtility(IHaproxyConfigurator)
     configurator.add_backend(site_id, dns_name)
     configurator.reload_config()
