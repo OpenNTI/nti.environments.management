@@ -197,6 +197,14 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     and return it. This tasks acts as a chord callback for the group
     """
 
+    app = task._get_app()
+    ha = IHaproxyBackendTask(app).task
+    logger.info('Spawning haproxy job')
+    res = ha(site_info.site_id, site_info.dns_name)
+    res.get()
+    logger.info('Haproxy job complete')
+    
+
     # Currently the only task in our group that has output we care about is
     # the provision task. It's the last child in the group.
     # TODO how can we reduce the coupling to the group structure.
@@ -265,17 +273,17 @@ class SetupEnvironmentTask(AbstractTask):
     def __call__(self, site_id, site_name, dns_name, name, email):
         dns_name = dns_name.lower()
 
-        ha = IHaproxyBackendTask(self.app).task
+        #ha = IHaproxyBackendTask(self.app).task
         dns = IDNSMappingTask(self.app).task
         prov = IProvisionEnvironmentTask(self.app).task
 
-        ha = ha.s(site_id, dns_name)
+        #ha = ha.s(site_id, dns_name)
         dns = dns.s(dns_name)
         prov = prov.s(site_id, site_name, dns_name, name, email)
 
         info = SiteInfo(site_id, dns_name)
 
-        c = (group(ha, dns, prov) | self.join_task.s(info))
+        c = (group(dns, prov) | self.join_task.s(info))
         return c()
 
     def restore_task(self, state):
