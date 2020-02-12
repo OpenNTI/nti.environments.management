@@ -134,7 +134,7 @@ def _do_ping_site(url, site_id, timeout=1):
     pong = resp.json()
 
     pinged_site = pong.get('Site', None)
-    if pinged_site.lower() != site_id:
+    if pinged_site != site_id.lower():
         raise SiteVerificationException('Site verification error. Expected site %s but found %s' % (site_id, pinged_site))
 
     return pong
