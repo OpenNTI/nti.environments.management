@@ -37,9 +37,9 @@ _BACKEND_DEFINITION = r"""backend $SITE_ID_backend
     option http-server-close
     timeout server 15m
 
-    option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ localhost
+    option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
 
-    server node1 $SITE_ID.nti:8086 weight 1 send-proxy
+    server node1 $SITE_ID.nti:8086 weight 1 on-error mark-down check inter 500 rise 2 fall 2 observe layer7 send-proxy
 """
 
 _REPLACEMENT_PATTERN = "$SITE_ID"
