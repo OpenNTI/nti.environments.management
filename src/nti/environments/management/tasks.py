@@ -134,7 +134,7 @@ def _do_ping_site(url, site_id, timeout=1):
     pong = resp.json()
 
     pinged_site = pong.get('Site', None)
-    if pinged_site != site_id:
+    if pinged_site.lower() != site_id:
         raise SiteVerificationException('Site verification error. Expected site %s but found %s' % (site_id, pinged_site))
 
     return pong
@@ -201,6 +201,10 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     ha = IHaproxyBackendTask(app)
     logger.info('Spawning haproxy job')
     res = ha(site_info.site_id, site_info.dns_name)
+    # By default celery doesn't want us running tasks synchronously from other
+    # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
+    # Rightfully so as we could very very easily deadlock ourselves.
+    # TODO: restructure this with chaining
     res.get(disable_sync_subtasks=False)
     logger.info('Haproxy job complete')
     
