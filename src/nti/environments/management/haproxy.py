@@ -185,6 +185,12 @@ def reload_haproxy_cfg(admin_socket):
     # case. So now try to get the proc status and figure out if things
     # were restarted. Again, we're run serially so were are hand waving around
     # a ton of syncronization issues.
+
+    # The afore mentioned reload command also puts the socket in a wierd state
+    # for a very short time afterwards as well. For now we will just sleep for
+    # a short fixed amount of time and hope that works.
+    time.sleep(0.2)
+
     logger.info('Sending \'show proc\' command to haproxy master process.')
     output = send_command(admin_socket, 'show proc')
     logger.info('\'show proc\' command sent.')
