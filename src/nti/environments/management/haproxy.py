@@ -172,7 +172,7 @@ def check_haproxy_status_output(output):
     return True
 
 
-def reload_haproxy_cfg(admin_socket):
+def reload_haproxy_cfg(admin_socket, check_reload=True):
     """
     Reload the haproxy config by sending the reload command over
     the admin socket.
@@ -186,20 +186,22 @@ def reload_haproxy_cfg(admin_socket):
     # were restarted. Again, we're run serially so were are hand waving around
     # a ton of syncronization issues.
 
-    # The afore mentioned reload command also puts the socket in a wierd state
-    # for a very short time afterwards as well. For now we will just sleep for
-    # a short fixed amount of time and hope that works.
-    time.sleep(0.2)
+    if check_reload:
 
-    logger.info('Sending \'show proc\' command to haproxy master process.')
-    output = send_command(admin_socket, 'show proc')
-    logger.info('\'show proc\' command sent.')
+        # The afore mentioned reload command also puts the socket in a wierd state
+        # for a very short time afterwards as well. For now we will just sleep for
+        # a short fixed amount of time and hope that works.
+        time.sleep(0.2)
 
-    try:
-        check_haproxy_status_output(output)
-    except HAProxyCommandException as e:
-        logger.exception('HAProxy Reload failed')
-        raise HAProxyCommandException('Haproxy reload failed: %s', e)
+        logger.info('Sending \'show proc\' command to haproxy master process.')
+        output = send_command(admin_socket, 'show proc')
+        logger.info('\'show proc\' command sent.')
+
+        try:
+            check_haproxy_status_output(output)
+        except HAProxyCommandException as e:
+            logger.exception('HAProxy Reload failed')
+        return raise HAProxyCommandException('Haproxy reload failed: %s', e)
 
 @interface.implementer(IHaproxyConfigurator)
 class HAProxyConfigurator(object):
@@ -219,7 +221,7 @@ class HAProxyConfigurator(object):
 
     def reload_config(self):
         logger.info('Issuing reload of haproxy config')
-        reload_haproxy_cfg(self.admin_socket)
+        reload_haproxy_cfg(self.admin_socket, False)
 
 def _haproxy_configurator_factory():
     settings = component.getUtility(ISettings)
