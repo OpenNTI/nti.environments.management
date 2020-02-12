@@ -198,7 +198,7 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     """
 
     app = task._get_app()
-    ha = IHaproxyBackendTask(app).task
+    ha = IHaproxyBackendTask(app)
     logger.info('Spawning haproxy job')
     res = ha(site_info.site_id, site_info.dns_name)
     res.get()
