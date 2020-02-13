@@ -24,6 +24,7 @@ from zope.configuration import xmlconfig
 from zope.dottedname import resolve as dottedname
 
 from .interfaces import IHaproxyBackendTask
+from .interfaces import IHaproxyReloadTask
 from .interfaces import IHaproxyConfigurator
 from .interfaces import ISettings
 
@@ -281,4 +282,29 @@ class MockSetupHAProxyBackend(SetupHAProxyBackend):
 
     NAME = 'mock_' + SetupHAProxyBackend.NAME
     TC = mock_haproxy
+
+
+def mock_reload(*args, **kwargs):
+    return mock_task(*args, **kwargs)
+
+def reload_haproxy(task):
+    configurator = component.getUtility(IHaproxyConfigurator)
+    configurator.reload()
+
+@interface.implementer(IHaproxyReloadTask)
+class HAProxyReload(AbstractTask):
+
+    NAME = 'reload_haproxy'
+    TC = reload_haproxy
+    QUEUE = 'tier1'
+
+    def __call__(self):
+        return self.task.apply_async()
+
+
+@interface.implementer(IHaproxyReloadTask)
+class MockHAProxyReload(HAProxyReload):
+
+    NAME = 'mock_' + HAProxyReload.NAME
+    TC = mock_reload
 
