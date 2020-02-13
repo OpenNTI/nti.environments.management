@@ -42,9 +42,11 @@ logger = __import__('logging').getLogger(__name__)
 class SimpleTaskState(object):
 
     task_id = None
+    version = None
 
-    def __init__(self, id):
+    def __init__(self, id, version=1):
         self.task_id = id
+        self.version = version
 
 class AbstractTask(object):
 
