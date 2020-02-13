@@ -21,6 +21,7 @@ from celery import group
 
 from celery.result import AsyncResult
 from celery.result import GroupResult
+from celery.result import result_from_tuple
 
 from zope.component.hooks import setHooks
 
@@ -68,20 +69,15 @@ class AbstractTask(object):
     def restore_task(self, state):
         """
         Restores the given task from the app we are associated with.
-        By default we restore as an AsyncResult but subclasses may override that.
         """
-        task_id = state.task_id
-        return AsyncResult(task_id, app=app)
+        return result_from_tuple(state, app=self.app)
 
 
     def save_task(async_result):
         """
-        Save the async_result for retrieval latter. By default
-        tasks return AsyncResults which persist automatically when
-        a backend is provided. This noops, but subclasses may return
-        tasks that must explicitly save. For example a celery.result.ResultSet
+        Save the async_result for retrieval latter.
         """
-        return SimpleTaskState(async_result.id)
+        return async_result.as_tuple()
 
 
 def setup_site(task, site_id, site_name, hostname, **options):
@@ -289,30 +285,10 @@ class SetupEnvironmentTask(AbstractTask):
 
         info = SiteInfo(site_id, dns_name)
 
-        c = (group(dns, prov) | self.join_task.s(info))
+        g1 = group(dns, prov)
+
+        c = ( g1 | self.join_task.s(info))
         return c()
-
-    def restore_task(self, state):
-        """
-        Restores the given task from the app we are associated with.
-        By default we restore as an AsyncResult but subclasses may override that.
-        """
-        task_id = state.task_id
-        group_id = state.group_id
-
-        parent = GroupResult.restore(group_id, app=self.app)
-        return AsyncResult(task_id, parent=parent, app=self.app)
-
-
-    def save_task(self, async_result):
-        """
-        Save the async_result for retrieval latter. By default
-        tasks return AsyncResults which persist automatically when
-        a backend is provided. This noops, but subclasses may return
-        tasks that must explicitly save. For example a celery.result.ResultSet
-        """
-        async_result.parent.save()
-        return SetupTaskState(async_result.id, async_result.parent.id)
 
 def main():
     from .worker import app
