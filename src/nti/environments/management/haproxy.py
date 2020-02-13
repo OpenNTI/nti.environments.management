@@ -253,8 +253,12 @@ def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wai
     configurator.add_backend(site_id, dns_name)
     configurator.reload_config()
 
-def mock_haproxy(*args, **kwargs):
-    return mock_task(*args, **kwargs)
+def mock_haproxy(task, *args, **kwargs):
+    val = mock_task(task, *args, **kwargs)
+    if task.request.retries < 5:
+        logger.info('Retrying mock haproxy task')
+        task.retry()
+    return val
 
 @interface.implementer(IHaproxyBackendTask)
 class SetupHAProxyBackend(AbstractTask):
@@ -262,6 +266,10 @@ class SetupHAProxyBackend(AbstractTask):
     NAME = 'create_haproxy_backend'
     TC = configure_haproxy
     QUEUE = 'tier1'
+
+    @classmethod
+    def bind(cls, app, **kwargs):
+        super(SetupHAProxyBackend, cls).bind(app, max_retries=10, default_retry_delay=2)
 
     def __call__(self, site_id, dns_name):
         dns_name = dns_name.lower()

@@ -56,8 +56,8 @@ class AbstractTask(object):
     QUEUE = None
 
     @classmethod
-    def bind(cls, app):
-        app.task(bind=True, name=cls.NAME)(cls.TC)
+    def bind(cls, app, **kwargs):
+        app.task(bind=True, name=cls.NAME, **kwargs)(cls.TC)
 
     def __init__(self, app):
         self.app = app
@@ -195,16 +195,16 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     and return it. This tasks acts as a chord callback for the group
     """
 
-    app = task._get_app()
-    ha = IHaproxyBackendTask(app)
-    logger.info('Spawning haproxy job')
-    res = ha(site_info.site_id, site_info.dns_name)
-    # By default celery doesn't want us running tasks synchronously from other
-    # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
-    # Rightfully so as we could very very easily deadlock ourselves.
-    # TODO: restructure this with chaining
-    res.get(disable_sync_subtasks=False)
-    logger.info('Haproxy job complete')
+    # app = task._get_app()
+    # ha = IHaproxyBackendTask(app)
+    # logger.info('Spawning haproxy job')
+    # res = ha(site_info.site_id, site_info.dns_name)
+    # # By default celery doesn't want us running tasks synchronously from other
+    # # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
+    # # Rightfully so as we could very very easily deadlock ourselves.
+    # # TODO: restructure this with chaining
+    # res.get(disable_sync_subtasks=False)
+    # logger.info('Haproxy job complete')
     
 
     # Currently the only task in our group that has output we care about is
@@ -275,17 +275,18 @@ class SetupEnvironmentTask(AbstractTask):
     def __call__(self, site_id, site_name, dns_name, name, email):
         dns_name = dns_name.lower()
 
-        #ha = IHaproxyBackendTask(self.app).task
+        ha = IHaproxyBackendTask(self.app).task
         dns = IDNSMappingTask(self.app).task
         prov = IProvisionEnvironmentTask(self.app).task
 
-        #ha = ha.s(site_id, dns_name)
+        ha = ha.s(site_id, dns_name).set(countdown=10)
+        
         dns = dns.s(dns_name)
         prov = prov.s(site_id, site_name, dns_name, name, email)
 
         info = SiteInfo(site_id, dns_name)
 
-        g1 = group(dns, prov)
+        g1 = group(dns, ha, prov)
 
         c = ( g1 | self.join_task.s(info))
         return c()
