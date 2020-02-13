@@ -73,7 +73,7 @@ class AbstractTask(object):
         return result_from_tuple(state, app=self.app)
 
 
-    def save_task(async_result):
+    def save_task(self, async_result):
         """
         Save the async_result for retrieval latter.
         """
