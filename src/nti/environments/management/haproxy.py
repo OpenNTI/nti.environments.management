@@ -39,7 +39,7 @@ _BACKEND_DEFINITION = r"""backend $SITE_ID_backend
 
     option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
 
-    server node1 $SITE_ID.nti:8086 weight 1 on-error mark-down check inter 500 rise 2 fall 2 observe layer7 send-proxy
+    server node1 $SITE_ID.nti:8086 weight 1 on-error mark-down check inter 2000 rise 1 fall 3 observe layer7 send-proxy
 """
 
 _REPLACEMENT_PATTERN = "$SITE_ID"
