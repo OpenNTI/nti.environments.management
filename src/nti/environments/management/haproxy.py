@@ -289,7 +289,7 @@ def mock_reload(*args, **kwargs):
 
 def reload_haproxy(task):
     configurator = component.getUtility(IHaproxyConfigurator)
-    configurator.reload()
+    configurator.reload_config()
 
 @interface.implementer(IHaproxyReloadTask)
 class HAProxyReload(AbstractTask):
