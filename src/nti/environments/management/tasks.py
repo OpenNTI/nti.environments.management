@@ -194,17 +194,6 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     Given a group result for a site setup, complete the site_info object
     and return it. This tasks acts as a chord callback for the group
     """
-
-    # app = task._get_app()
-    # ha = IHaproxyBackendTask(app)
-    # logger.info('Spawning haproxy job')
-    # res = ha(site_info.site_id, site_info.dns_name)
-    # # By default celery doesn't want us running tasks synchronously from other
-    # # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
-    # # Rightfully so as we could very very easily deadlock ourselves.
-    # # TODO: restructure this with chaining
-    # res.get(disable_sync_subtasks=False)
-    # logger.info('Haproxy job complete')
     
 
     # Currently the only task in our group that has output we care about is
