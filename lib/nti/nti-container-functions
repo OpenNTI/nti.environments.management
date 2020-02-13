@@ -4,7 +4,7 @@ function add_CNAME () {
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
     hostSystem=$(hostname)
-    echo "Adding CNAME record for $podHostName"
+    echo "$(date): Adding CNAME record for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
 prereq yxdomain $infraIDHostName
 update add $podHostName 150 CNAME $infraIDHostName
@@ -19,7 +19,7 @@ function remove_CNAME (){
     infraID=$(podman pod inspect $pod | jq ".State.infraContainerID[0:12]" | sed -e "s|\"||g")
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
-    echo "Removing CNAME record for $podHostName"
+    echo "$(date): Removing CNAME record for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
 prereq yxdomain $podHostName
 update delete $podHostName
