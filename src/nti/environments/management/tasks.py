@@ -255,7 +255,7 @@ class SiteInfo(object):
     @property
     def elapsed_time(self):
         if not start_time or not end_time:
-            return -1
+            return None
         return (end_time - start_time).total_seconds()
 
 
