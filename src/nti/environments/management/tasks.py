@@ -42,15 +42,6 @@ from .interfaces import ISetupEnvironmentTask
 
 logger = __import__('logging').getLogger(__name__)
 
-class SimpleTaskState(object):
-
-    task_id = None
-    version = None
-
-    def __init__(self, id, version=1):
-        self.task_id = id
-        self.version = version
-
 class AbstractTask(object):
 
     NAME = None
@@ -257,19 +248,6 @@ class SiteInfo(object):
         if not start_time or not end_time:
             return None
         return (end_time - start_time).total_seconds()
-
-
-class SetupTaskState(SimpleTaskState):
-    """
-    In addition to the basic task information,
-    also track the parent group state
-    """
-
-    group_id = None
-
-    def __init__(self, task_id, group_id):
-        self.task_id = task_id
-        self.group_id = group_id
 
 
 @interface.implementer(ISetupEnvironmentTask)
