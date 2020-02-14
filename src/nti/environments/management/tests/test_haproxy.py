@@ -57,7 +57,6 @@ BAD_RELOAD_OUTPUT = """#<PID>          <type>          <relative PID>  <reloads>
 """
 
 class TestHaproxy(unittest.TestCase):
-
     folder = None
 
     layer = SharedConfiguringTestLayer

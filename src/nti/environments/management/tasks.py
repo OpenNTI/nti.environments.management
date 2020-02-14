@@ -9,6 +9,7 @@ import time
 import subprocess
 import json
 import functools
+import datetime
 
 import requests
 
@@ -196,39 +197,43 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     and return it. This tasks acts as a chord callback for the group
     """
 
-    app = task._get_app()
-    ha = IHaproxyReloadTask(app)
-    logger.info('Spawning haproxy reload job')
-    res = ha()
-    # By default celery doesn't want us running tasks synchronously from other
-    # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
-    # Rightfully so as we could very very easily deadlock ourselves.
-    rval = res.get(timeout=20, disable_sync_subtasks=False, propagate=False)
-    logger.info('Haproxy job completed with %s', rval)
+    try:
+        app = task._get_app()
+        ha = IHaproxyReloadTask(app)
+        logger.info('Spawning haproxy reload job')
+        res = ha()
+        # By default celery doesn't want us running tasks synchronously from other
+        # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
+        # Rightfully so as we could very very easily deadlock ourselves.
+        rval = res.get(timeout=20, disable_sync_subtasks=False, propagate=False)
+        logger.info('Haproxy job completed with %s', rval)
 
     
 
-    # Currently the only task in our group that has output we care about is
-    # the provision task. It's the last child in the group.
-    # TODO how can we reduce the coupling to the group structure.
-    pod_result = group_result[-1]
-    host, invite = pod_result
-    logger.info('Site %s spinup complete.', site_info.site_id)
-    site_info.admin_invitation = invite
-    site_info.host = host
+        # Currently the only task in our group that has output we care about is
+        # the provision task. It's the last child in the group.
+        # TODO how can we reduce the coupling to the group structure.
+        pod_result = group_result[-1]
+        host, invite = pod_result
+        logger.info('Site %s spinup complete.', site_info.site_id)
+        site_info.admin_invitation = invite
+        site_info.host = host
 
-    if verify_site:
-        logger.info('Performing site verification for site %s', site_info.site_id)
-        try:
-            valid = _do_verify_site(site_info)
-            if valid:
-                logger.info('Site verification for site %s completed successfully',
-                            site_info.site_id)
-        except SiteVerificationException:
-            logger.exception('Site verification failed')
-            raise
-    else:
-        logger.warn('Bypassing site verification. Devmode?')
+        if verify_site:
+            logger.info('Performing site verification for site %s', site_info.site_id)
+            try:
+                valid = _do_verify_site(site_info)
+                if valid:
+                    logger.info('Site verification for site %s completed successfully',
+                                site_info.site_id)
+            except SiteVerificationException:
+                logger.exception('Site verification failed')
+                raise
+            else:
+                logger.warn('Bypassing site verification. Devmode?')
+    finally:
+        site_info.end_time = end_time
+        logger.info('Setup of site %s complete in %.2f seconds', site_info.site_id, site_info.elapsed_time)
 
     return site_info
 
@@ -240,10 +245,18 @@ class SiteInfo(object):
     site_id = None
     host = None
     admin_invitation = None
-
+    start_time = None
+    end_time = None
+    
     def __init__(self, site_id, dns_name):
         self.site_id = site_id
         self.dns_name = dns_name
+
+    @property
+    def elapsed_time(self):
+        if not start_time or not end_time:
+            return -1
+        return (end_time - start_time).total_seconds()
 
 
 class SetupTaskState(SimpleTaskState):
@@ -286,6 +299,7 @@ class SetupEnvironmentTask(AbstractTask):
         prov = prov.s(site_id, site_name, dns_name, name, email)
 
         info = SiteInfo(site_id, dns_name)
+        info.start_time = datetime.datetime.utcnow()
 
         g1 = group(dns, ha, prov)
 
