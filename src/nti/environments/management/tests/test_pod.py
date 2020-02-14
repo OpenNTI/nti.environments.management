@@ -60,7 +60,7 @@ class TestDNS(unittest.TestCase):
                                           stderr=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
                                           encoding='utf-8',
-                                          shell=True)
+                                          shell=False)
         fake_process = mock_run.returns_fake(name='subprocess.CompletedProcess').is_a_stub()
         fake_process.has_attr(stderr='foo', stdout='{"admin_invitation": "foo", "host_system": "bar"}', returncode=0)
 
@@ -98,7 +98,7 @@ class TestDNS(unittest.TestCase):
                                           stderr=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
                                           encoding='utf-8',
-                                          shell=True)
+                                          shell=False)
         fake_process = mock_run.returns_fake(name='subprocess.CompletedProcess').is_a_stub()
         fake_process.has_attr(stderr='an error occurred', stdout='', returncode=127)
         fake_process.provides('check_returncode').raises(subprocess.CalledProcessError(127, 'foo'))
