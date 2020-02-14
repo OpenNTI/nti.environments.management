@@ -87,7 +87,19 @@ function create_pod (){
       return 14
     fi
   fi
+}
 
+function start_dataserver_aux_processes (){
+  pod=$1
   
-
+  podman container exists $pod-dataserver
+  ret=$?
+  if [ "$ret" -eq 0 ]
+  then
+    echo "$(date): Starting dataserver auxilary processes"
+    podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl start server:*
+  else
+    echo "$(date): ABORT! No dataserver container is running in the $pod environment."
+    return 16
+  fi
 }

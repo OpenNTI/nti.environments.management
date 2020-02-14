@@ -111,7 +111,7 @@ then
     cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$siteID|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$siteHostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     chcon -R  system_u:object_r:container_file_t:s0 $podroot
 
-    start_pod_environment $pod
+    start_pod_environment $pod init
     ret=$?
     if [ ! "$ret" -eq 0 ]
     then
@@ -131,7 +131,7 @@ then
     ret=$?
     if [ $ret -ne 0 ]
     then
-      echo "$(date): ABORT! Dataserver failed start." 1>&2
+      echo "$(date): ABORT! Dataserver failed to start." 1>&2
       exit 8
     else
       echo "$(date): The dataserver is accepting requests." 1>&2
@@ -151,8 +151,9 @@ then
     fi
 #    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
     systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod 1>&2
+    start_dataserver_aux_processes $pod 1>&2
 else
-    start_pod_environment $pod
+    start_pod_environment $pod normal 1>&2
     ret=$?
     if [ ! "$ret" -eq 0 ]
     then

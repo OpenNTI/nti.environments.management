@@ -5,6 +5,12 @@ source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
 podroot=/opt/pods/$pod
+runtype=$2
+
+if [ -z "$runtype" ]
+then
+  runtype="normal"
+fi
 
 echo "$(date): Starting $pod environment" 1>&2
 
@@ -131,6 +137,21 @@ ret=$?
 if [ "$ret" -eq 1 ]
 then
   podman run --pod=$pod --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/splunk/etc:/opt/splunk/etc:rw --volume $podroot/splunk/var:/opt/splunk/var:rw --env SPLUNK_START_ARGS="--accept-license --answer-yes" --entrypoint '[ "entrypoint.sh", "start-service"]' --name $pod-splunk --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk:latest 1>&2
+fi
+
+if [ ! "$runtype" == "init" ]
+then
+  #Waiting for the DS to be up
+  echo "$(date): Checking if the dataserver is up." 1>&2
+  curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 90 http://localhost/_ops/ping 1>&2
+  ret=$?
+  if [ $ret -ne 0 ]
+  then
+    echo "$(date): ABORT! Dataserver failed to start." 1>&2
+    exit 8
+  else
+    start_dataserver_aux_processes $pod
+  fi
 fi
 
 chmod go+r $podroot/logs/*.log
