@@ -207,8 +207,8 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
             except SiteVerificationException:
                 logger.exception('Site verification failed')
                 raise
-            else:
-                logger.warn('Bypassing site verification. Devmode?')
+        else:
+            logger.warn('Bypassing site verification. Devmode?')
     finally:
         site_info.end_time = datetime.datetime.utcnow()
         logger.info('Setup of site %s complete in %.2f seconds',
