@@ -32,9 +32,9 @@ _EXPECTED_BACKED = r"""backend S123456789ABCDEF_backend
     option http-server-close
     timeout server 15m
 
-    option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ localhost
+    option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ S123456789ABCDEF
 
-    server node1 S123456789ABCDEF.nti:8086 weight 1 send-proxy
+    server node1 S123456789ABCDEF.nti:8086 weight 1 on-error mark-down check inter 2000 rise 1 fall 3 observe layer7 send-proxy
 """
 
 GOOD_RELOAD_OUTPUT = """#<PID>          <type>          <relative PID>  <reloads>       <uptime>        <version>
@@ -57,7 +57,6 @@ BAD_RELOAD_OUTPUT = """#<PID>          <type>          <relative PID>  <reloads>
 """
 
 class TestHaproxy(unittest.TestCase):
-
     folder = None
 
     layer = SharedConfiguringTestLayer
@@ -107,7 +106,7 @@ class TestHaproxy(unittest.TestCase):
         assert_that(configurator.backend_map, is_('/tmp/haproxy/etc/maps/env.map'))
         assert_that(configurator.backends_folder, is_('/tmp/haproxy/etc/'))
 
-        mock_reload.expects_call().with_args(configurator.admin_socket)
+        mock_reload.expects_call().with_args(configurator.admin_socket, False)
 
         configurator.backends_folder = self.folder
         configurator.backend_map = self.mapping

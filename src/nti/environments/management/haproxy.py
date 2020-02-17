@@ -24,6 +24,7 @@ from zope.configuration import xmlconfig
 from zope.dottedname import resolve as dottedname
 
 from .interfaces import IHaproxyBackendTask
+from .interfaces import IHaproxyReloadTask
 from .interfaces import IHaproxyConfigurator
 from .interfaces import ISettings
 
@@ -39,7 +40,7 @@ _BACKEND_DEFINITION = r"""backend $SITE_ID_backend
 
     option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
 
-    server node1 $SITE_ID.nti:8086 weight 1 on-error mark-down check inter 500 rise 2 fall 2 observe layer7 send-proxy
+    server node1 $SITE_ID.nti:8086 weight 1 on-error mark-down check inter 2000 rise 1 fall 3 observe layer7 send-proxy
 """
 
 _REPLACEMENT_PATTERN = "$SITE_ID"
@@ -253,8 +254,12 @@ def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wai
     configurator.add_backend(site_id, dns_name)
     configurator.reload_config()
 
-def mock_haproxy(*args, **kwargs):
-    return mock_task(*args, **kwargs)
+def mock_haproxy(task, *args, **kwargs):
+    val = mock_task(task, *args, **kwargs)
+    if task.request.retries < 5:
+        logger.info('Retrying mock haproxy task')
+        task.retry()
+    return val
 
 @interface.implementer(IHaproxyBackendTask)
 class SetupHAProxyBackend(AbstractTask):
@@ -262,6 +267,10 @@ class SetupHAProxyBackend(AbstractTask):
     NAME = 'create_haproxy_backend'
     TC = configure_haproxy
     QUEUE = 'tier1'
+
+    @classmethod
+    def bind(cls, app, **kwargs):
+        super(SetupHAProxyBackend, cls).bind(app, max_retries=10, default_retry_delay=2)
 
     def __call__(self, site_id, dns_name):
         dns_name = dns_name.lower()
@@ -273,4 +282,29 @@ class MockSetupHAProxyBackend(SetupHAProxyBackend):
 
     NAME = 'mock_' + SetupHAProxyBackend.NAME
     TC = mock_haproxy
+
+
+def mock_reload(*args, **kwargs):
+    return mock_task(*args, **kwargs)
+
+def reload_haproxy(task):
+    configurator = component.getUtility(IHaproxyConfigurator)
+    configurator.reload_config()
+
+@interface.implementer(IHaproxyReloadTask)
+class HAProxyReload(AbstractTask):
+
+    NAME = 'reload_haproxy'
+    TC = reload_haproxy
+    QUEUE = 'tier1'
+
+    def __call__(self):
+        return self.task.apply_async()
+
+
+@interface.implementer(IHaproxyReloadTask)
+class MockHAProxyReload(HAProxyReload):
+
+    NAME = 'mock_' + HAProxyReload.NAME
+    TC = mock_reload
 

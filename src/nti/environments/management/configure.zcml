@@ -27,6 +27,10 @@
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IHaproxyBackendTask"/>
 
+		<adapter factory=".haproxy.MockHAProxyReload"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IHaproxyReloadTask"/>
+
 		<adapter factory=".pod.MockProvisionEnvironmentTask"
 			for=".interfaces.ICeleryApp"
 			provides=".interfaces.IProvisionEnvironmentTask"/>
@@ -44,6 +48,10 @@
 		<adapter factory=".haproxy.SetupHAProxyBackend"	
 			for=".interfaces.ICeleryApp"	
 			provides=".interfaces.IHaproxyBackendTask"/>
+
+		<adapter factory=".haproxy.HAProxyReload"	
+			for=".interfaces.ICeleryApp"	
+			provides=".interfaces.IHaproxyReloadTask"/>
 
 		<adapter factory=".pod.ProvisionEnvironmentTask"
 			for=".interfaces.ICeleryApp"

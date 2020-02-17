@@ -120,6 +120,16 @@ class IHaproxyBackendTask(IApplicationTask):
         backend and mapping.
         """
 
+class IHaproxyReloadTask(IApplicationTask):
+    """
+    A task that simply reloads haproxy
+    """
+
+    def __call__():
+        """
+        Dispatch a task that simply reloads the tier1 haproxy.
+        """
+
 
 class IHaproxyConfigurator(interface.Interface):
     """

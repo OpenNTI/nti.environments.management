@@ -9,6 +9,7 @@ import time
 import subprocess
 import json
 import functools
+import datetime
 
 import requests
 
@@ -21,6 +22,7 @@ from celery import group
 
 from celery.result import AsyncResult
 from celery.result import GroupResult
+from celery.result import result_from_tuple
 
 from zope.component.hooks import setHooks
 
@@ -35,16 +37,10 @@ from .interfaces import IInitializedSiteInfo
 from .interfaces import IProvisionEnvironmentTask
 from .interfaces import IDNSMappingTask
 from .interfaces import IHaproxyBackendTask
+from .interfaces import IHaproxyReloadTask
 from .interfaces import ISetupEnvironmentTask
 
 logger = __import__('logging').getLogger(__name__)
-
-class SimpleTaskState(object):
-
-    task_id = None
-
-    def __init__(self, id):
-        self.task_id = id
 
 class AbstractTask(object):
 
@@ -53,8 +49,8 @@ class AbstractTask(object):
     QUEUE = None
 
     @classmethod
-    def bind(cls, app):
-        app.task(bind=True, name=cls.NAME)(cls.TC)
+    def bind(cls, app, **kwargs):
+        app.task(bind=True, name=cls.NAME, **kwargs)(cls.TC)
 
     def __init__(self, app):
         self.app = app
@@ -66,20 +62,15 @@ class AbstractTask(object):
     def restore_task(self, state):
         """
         Restores the given task from the app we are associated with.
-        By default we restore as an AsyncResult but subclasses may override that.
         """
-        task_id = state.task_id
-        return AsyncResult(task_id, app=app)
+        return result_from_tuple(state, app=self.app)
 
 
-    def save_task(async_result):
+    def save_task(self, async_result):
         """
-        Save the async_result for retrieval latter. By default
-        tasks return AsyncResults which persist automatically when
-        a backend is provided. This noops, but subclasses may return
-        tasks that must explicitly save. For example a celery.result.ResultSet
+        Save the async_result for retrieval latter.
         """
-        return SimpleTaskState(async_result.id)
+        return async_result.as_tuple()
 
 
 def setup_site(task, site_id, site_name, hostname, **options):
@@ -134,7 +125,7 @@ def _do_ping_site(url, site_id, timeout=1):
     pong = resp.json()
 
     pinged_site = pong.get('Site', None)
-    if pinged_site != site_id:
+    if pinged_site != site_id.lower():
         raise SiteVerificationException('Site verification error. Expected site %s but found %s' % (site_id, pinged_site))
 
     return pong
@@ -144,7 +135,7 @@ def _ping_url(site_info):
     return 'https://%s/dataserver2/logon.ping' % site_info.dns_name
 
 
-def _do_verify_site(site_info, timeout=2, tries=5, wait=1):
+def _do_verify_site(site_info, timeout=2, tries=10, wait=2):
     """
     Verify the created site is accessible.
     """
@@ -197,27 +188,43 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
     and return it. This tasks acts as a chord callback for the group
     """
 
-    # Currently the only task in our group that has output we care about is
-    # the provision task. It's the last child in the group.
-    # TODO how can we reduce the coupling to the group structure.
-    pod_result = group_result[-1]
-    host, invite = pod_result
-    logger.info('Site %s spinup complete.', site_info.site_id)
-    site_info.admin_invitation = invite
-    site_info.host = host
+    try:
+        app = task._get_app()
+        ha = IHaproxyReloadTask(app)
+        logger.info('Spawning haproxy reload job')
+        res = ha()
+        # By default celery doesn't want us running tasks synchronously from other
+        # tasks http://docs.celeryq.org/en/latest/userguide/tasks.html#task-synchronous-subtasks.
+        # Rightfully so as we could very very easily deadlock ourselves.
+        rval = res.get(timeout=20, disable_sync_subtasks=False, propagate=False)
+        logger.info('Haproxy job completed with %s', rval)
 
-    if verify_site:
-        logger.info('Performing site verification for site %s', site_info.site_id)
-        try:
-            valid = _do_verify_site(site_info)
-            if valid:
-                logger.info('Site verification for site %s completed successfully',
-                            site_info.site_id)
-        except SiteVerificationException:
-            logger.exception('Site verification failed')
-            raise
-    else:
-        logger.warn('Bypassing site verification. Devmode?')
+    
+
+        # Currently the only task in our group that has output we care about is
+        # the provision task. It's the last child in the group.
+        # TODO how can we reduce the coupling to the group structure.
+        pod_result = group_result[-1]
+        host, invite = pod_result
+        logger.info('Site %s spinup complete.', site_info.site_id)
+        site_info.admin_invitation = invite
+        site_info.host = host
+
+        if verify_site:
+            logger.info('Performing site verification for site %s', site_info.site_id)
+            try:
+                valid = _do_verify_site(site_info)
+                if valid:
+                    logger.info('Site verification for site %s completed successfully',
+                                site_info.site_id)
+            except SiteVerificationException:
+                logger.exception('Site verification failed')
+                raise
+            else:
+                logger.warn('Bypassing site verification. Devmode?')
+    finally:
+        site_info.end_time = end_time
+        logger.info('Setup of site %s complete in %.2f seconds', site_info.site_id, site_info.elapsed_time)
 
     return site_info
 
@@ -229,23 +236,18 @@ class SiteInfo(object):
     site_id = None
     host = None
     admin_invitation = None
-
+    start_time = None
+    end_time = None
+    
     def __init__(self, site_id, dns_name):
         self.site_id = site_id
         self.dns_name = dns_name
 
-
-class SetupTaskState(SimpleTaskState):
-    """
-    In addition to the basic task information,
-    also track the parent group state
-    """
-
-    group_id = None
-
-    def __init__(self, task_id, group_id):
-        self.task_id = task_id
-        self.group_id = group_id
+    @property
+    def elapsed_time(self):
+        if not start_time or not end_time:
+            return None
+        return (end_time - start_time).total_seconds()
 
 
 @interface.implementer(ISetupEnvironmentTask)
@@ -269,36 +271,18 @@ class SetupEnvironmentTask(AbstractTask):
         dns = IDNSMappingTask(self.app).task
         prov = IProvisionEnvironmentTask(self.app).task
 
-        ha = ha.s(site_id, dns_name)
+        ha = ha.s(site_id, dns_name).set(countdown=10)
+        
         dns = dns.s(dns_name)
         prov = prov.s(site_id, site_name, dns_name, name, email)
 
         info = SiteInfo(site_id, dns_name)
+        info.start_time = datetime.datetime.utcnow()
 
-        c = (group(ha, dns, prov) | self.join_task.s(info))
+        g1 = group(dns, ha, prov)
+
+        c = ( g1 | self.join_task.s(info))
         return c()
-
-    def restore_task(self, state):
-        """
-        Restores the given task from the app we are associated with.
-        By default we restore as an AsyncResult but subclasses may override that.
-        """
-        task_id = state.task_id
-        group_id = state.group_id
-
-        parent = GroupResult.restore(group_id, app=self.app)
-        return AsyncResult(task_id, parent=parent, app=self.app)
-
-
-    def save_task(self, async_result):
-        """
-        Save the async_result for retrieval latter. By default
-        tasks return AsyncResults which persist automatically when
-        a backend is provided. This noops, but subclasses may return
-        tasks that must explicitly save. For example a celery.result.ResultSet
-        """
-        async_result.parent.save()
-        return SetupTaskState(async_result.id, async_result.parent.id)
 
 def main():
     from .worker import app
