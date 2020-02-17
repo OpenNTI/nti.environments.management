@@ -8,7 +8,6 @@ import os
 import time
 import subprocess
 import json
-import functools
 import datetime
 
 import requests
@@ -16,20 +15,9 @@ import requests
 from requests.exceptions import ConnectionError
 from requests.exceptions import HTTPError
 
-from urllib.parse import urlunparse
-
 from celery import group
 
-from celery.result import AsyncResult
-from celery.result import GroupResult
 from celery.result import result_from_tuple
-
-from zope.component.hooks import setHooks
-
-from zope.configuration import config
-from zope.configuration import xmlconfig
-
-from zope.dottedname import resolve as dottedname
 
 from zope import interface
 
@@ -41,6 +29,7 @@ from .interfaces import IHaproxyReloadTask
 from .interfaces import ISetupEnvironmentTask
 
 logger = __import__('logging').getLogger(__name__)
+
 
 class AbstractTask(object):
 
@@ -199,8 +188,6 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
         rval = res.get(timeout=20, disable_sync_subtasks=False, propagate=False)
         logger.info('Haproxy job completed with %s', rval)
 
-    
-
         # Currently the only task in our group that has output we care about is
         # the provision task. It's the last child in the group.
         # TODO how can we reduce the coupling to the group structure.
@@ -223,8 +210,9 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
             else:
                 logger.warn('Bypassing site verification. Devmode?')
     finally:
-        site_info.end_time = end_time
-        logger.info('Setup of site %s complete in %.2f seconds', site_info.site_id, site_info.elapsed_time)
+        site_info.end_time = datetime.datetime.utcnow()
+        logger.info('Setup of site %s complete in %.2f seconds',
+                    site_info.site_id, site_info.elapsed_time or -1)
 
     return site_info
 
@@ -238,16 +226,16 @@ class SiteInfo(object):
     admin_invitation = None
     start_time = None
     end_time = None
-    
+
     def __init__(self, site_id, dns_name):
         self.site_id = site_id
         self.dns_name = dns_name
 
     @property
     def elapsed_time(self):
-        if not start_time or not end_time:
+        if not self.start_time or not self.end_time:
             return None
-        return (end_time - start_time).total_seconds()
+        return (self.end_time - self.start_time).total_seconds()
 
 
 @interface.implementer(ISetupEnvironmentTask)
@@ -272,7 +260,7 @@ class SetupEnvironmentTask(AbstractTask):
         prov = IProvisionEnvironmentTask(self.app).task
 
         ha = ha.s(site_id, dns_name).set(countdown=10)
-        
+
         dns = dns.s(dns_name)
         prov = prov.s(site_id, site_name, dns_name, name, email)
 
@@ -283,6 +271,7 @@ class SetupEnvironmentTask(AbstractTask):
 
         c = ( g1 | self.join_task.s(info))
         return c()
+
 
 def main():
     from .worker import app
@@ -296,6 +285,7 @@ def main():
     result = task('foo', 'bar', 'baz.nextthought.io')
 
     print(result.get())
+
 
 if __name__ == "__main__":
     main()
