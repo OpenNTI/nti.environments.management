@@ -239,10 +239,9 @@ class SiteInfo(object):
         Get the value defined in the result dict, returning the `default`if
         not present.
         """
-        # We fail hard if the dict is not present.
         try:
             result = self.task_result_dict[key]
-        except KeyError:
+        except (KeyError, TypeError):
             result = default
         return result
 
