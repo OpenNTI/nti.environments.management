@@ -21,12 +21,12 @@ from celery.result import result_from_tuple
 
 from zope import interface
 
-from .interfaces import IInitializedSiteInfo
-from .interfaces import IProvisionEnvironmentTask
 from .interfaces import IDNSMappingTask
-from .interfaces import IHaproxyBackendTask
 from .interfaces import IHaproxyReloadTask
+from .interfaces import IHaproxyBackendTask
+from .interfaces import IInitializedSiteInfo
 from .interfaces import ISetupEnvironmentTask
+from .interfaces import IProvisionEnvironmentTask
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -191,11 +191,9 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
         # Currently the only task in our group that has output we care about is
         # the provision task. It's the last child in the group.
         # TODO how can we reduce the coupling to the group structure.
-        pod_result = group_result[-1]
-        host, invite = pod_result
+        pod_result_dict = group_result[-1]
+        site_info.task_result_dict = pod_result_dict
         logger.info('Site %s spinup complete.', site_info.site_id)
-        site_info.admin_invitation = invite
-        site_info.host = host
 
         if verify_site:
             logger.info('Performing site verification for site %s', site_info.site_id)
@@ -222,10 +220,9 @@ class SiteInfo(object):
 
     dns_name = None
     site_id = None
-    host = None
-    admin_invitation = None
     start_time = None
     end_time = None
+    task_result_dict = None
 
     def __init__(self, site_id, dns_name):
         self.site_id = site_id
@@ -236,6 +233,33 @@ class SiteInfo(object):
         if not self.start_time or not self.end_time:
             return None
         return (self.end_time - self.start_time).total_seconds()
+
+    def _get_result_val(self, key, default=None):
+        """
+        Get the value defined in the result dict, returning the `default`if
+        not present.
+        """
+        # We fail hard if the dict is not present.
+        try:
+            result = self.task_result_dict[key]
+        except KeyError:
+            result = default
+        return result
+
+    @property
+    def admin_invitation(self):
+        """
+        The url to redeem the admin invitation.
+        """
+        return self._get_result_val('admin_invitation')
+
+    @property
+    def admin_invitation_code(self):
+        return self._get_result_val('admin_invitation_code')
+
+    @property
+    def host(self):
+        return self._get_result_val('host')
 
 
 @interface.implementer(ISetupEnvironmentTask)

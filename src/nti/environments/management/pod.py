@@ -47,18 +47,21 @@ def _mock_init_pod_env(task, site_id, site_name, dns_name, customer_name, custom
     if should_raise:
         raise Exception('Mock setup failed')
 
-    return 'host1.dev', '/dataserver2/@@accept-site-invitation?code=mockcode'
+    result = dict()
+    result['host'] = 'host1.dev'
+    result['admin_invitation'] = '/dataserver2/@@accept-site-invitation?code=mockcode'
+    return result
 
 
 def _init_pod_env(task, site_id, site_name, dns_name, customer_name, customer_email):
     provisioner = component.getUtility(IEnvironmentProvisioner)
     result = provisioner.provision_environment(site_id, site_name, dns_name, customer_name, customer_email)
-    return result['host_system'], result['admin_invitation']
+    return result
 
 def _pod_root_init_log(podid):
     settings = component.getUtility(ISettings)['pods']
     return os.path.join(settings['root_dir'], podid, settings['pod_logs_dir'], 'init.log')
-    
+
 
 @interface.implementer(IEnvironmentProvisioner)
 class EnvironmentProvisioner(object):
@@ -81,7 +84,7 @@ class EnvironmentProvisioner(object):
 
         for line in completed_process.stderr.splitlines():
             logger.debug('%s for site=(%s) produced output: %s', self.script_name, site_id, line)
-    
+
         # Capture any logging on stderr and write it to our log file
         # This probably shouldn't fail if setup actually succeeded. Do
         # we want a failure here to fail the setup and the entire job?
@@ -98,7 +101,7 @@ class EnvironmentProvisioner(object):
 
         stdout = completed_process.stdout
         assert stdout is not None
-        return json.loads(stdout)
+        return dict(json.loads(stdout))
 
 def _provisioner_factory():
     settings = component.getUtility(ISettings)
