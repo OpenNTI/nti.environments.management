@@ -252,14 +252,15 @@ def configure_haproxy(task, site_id, dns_name, dns_check_interval=1, dns_max_wai
     """
     configurator = component.getUtility(IHaproxyConfigurator)
     configurator.add_backend(site_id, dns_name)
-    configurator.reload_config()
+
+    try:
+        configurator.reload_config()
+    except ConnectionError:
+        # This is tightly coupled with the fact that we retry later
+        logger.warn('ConnectionError when reloading config. Trying again later')
 
 def mock_haproxy(task, *args, **kwargs):
-    val = mock_task(task, *args, **kwargs)
-    if task.request.retries < 5:
-        logger.info('Retrying mock haproxy task')
-        task.retry()
-    return val
+    return mock_task(task, *args, **kwargs)
 
 @interface.implementer(IHaproxyBackendTask)
 class SetupHAProxyBackend(AbstractTask):
@@ -267,10 +268,6 @@ class SetupHAProxyBackend(AbstractTask):
     NAME = 'create_haproxy_backend'
     TC = configure_haproxy
     QUEUE = 'tier1'
-
-    @classmethod
-    def bind(cls, app, **kwargs):
-        super(SetupHAProxyBackend, cls).bind(app, max_retries=10, default_retry_delay=2)
 
     def __call__(self, site_id, dns_name):
         dns_name = dns_name.lower()
@@ -289,7 +286,10 @@ def mock_reload(*args, **kwargs):
 
 def reload_haproxy(task):
     configurator = component.getUtility(IHaproxyConfigurator)
-    configurator.reload_config()
+    try:
+        configurator.reload_config()
+    except ConnectionError:
+        task.retry()
 
 @interface.implementer(IHaproxyReloadTask)
 class HAProxyReload(AbstractTask):
@@ -297,6 +297,10 @@ class HAProxyReload(AbstractTask):
     NAME = 'reload_haproxy'
     TC = reload_haproxy
     QUEUE = 'tier1'
+
+    @classmethod
+    def bind(cls, app, **kwargs):
+        super(HAProxyReload, cls).bind(app, max_retries=10, default_retry_delay=1)
 
     def __call__(self):
         return self.task.apply_async()
