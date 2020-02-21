@@ -237,7 +237,7 @@ def _start_timer(timer_name, task_name, task_id):
 
 def _stop_timer(timer_name, task_name, task_id):
     """
-    Stops the timer and returns the elapsed time in milliseconds.
+    Stops the timer and returns the elapsed time in seconds.
     If the timer had not yet been started this function returns None.
     """
     started = None
@@ -269,7 +269,7 @@ def task_postrun_handler(task_id, task, *args, **kwargs):
 
     elapsed = _stop_timer('runtime', tname, task_id)
     if elapsed is not None:
-        statsd.timing('celery.task.%s.t' % tname, elapsed)
+        statsd.timing('celery.task.%s.t' % tname, elapsed * 1000)
     
     statsd.incr('celery.task.%s.postrun' % tname)
 
