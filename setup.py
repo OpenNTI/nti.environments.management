@@ -19,7 +19,8 @@ requires = [
     'zope.security',
     'dnspython',
     'requests',
-    'nti.tools.aws @ git+ssh://git@github.com/NextThought/nti.tools.aws'
+    'nti.tools.aws @ git+ssh://git@github.com/NextThought/nti.tools.aws',
+    'perfmetrics'
 ]
 
 tests_require = [
