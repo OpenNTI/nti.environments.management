@@ -26,6 +26,11 @@ from celery import Celery as _Celery
 from celery import Task as _Task
 from celery._state import connect_on_app_finalize
 
+from celery.signals import task_failure
+from celery.signals import task_postrun
+from celery.signals import task_prerun
+from celery.signals import task_success
+
 from kombu import binding
 from kombu import Exchange
 from kombu import Queue
@@ -33,6 +38,12 @@ from kombu import Queue
 import functools
 
 import random
+
+from perfmetrics import statsd_client
+
+import time
+
+import threading
 
 from zope.component.hooks import setHooks
 
@@ -212,6 +223,71 @@ def _bindable_tasks(registry=None):
         if adapter.provided.isOrExtends(IApplicationTask) \
            and getattr(adapter.factory, 'bind', None):
             yield adapter.factory
+
+_metric_state = threading.local()
+
+def _start_timer(timer_name, task_name, task_id):
+    """
+    Starts and tracks a timer with the given name for the given task name and instance id.
+    """
+    try:
+        _metric_state.timers[(timer_name, task_name, task_id)] = time.time()
+    except AttributeError:
+        _metric_state.timers = {(timer_name, task_name, task_id): time.time()}
+
+def _stop_timer(timer_name, task_name, task_id):
+    """
+    Stops the timer and returns the elapsed time in milliseconds.
+    If the timer had not yet been started this function returns None.
+    """
+    started = None
+    try:
+        started = _metric_state.timers.pop((timer_name, task_name, task_id))
+    except (AttributeError, KeyError):
+        return None
+
+    return time.time() - started
+
+@task_prerun.connect
+def task_prerun_handler(task_id, task, *args, **kwargs):
+    statsd = statsd_client()
+    if statsd is None:
+        return
+
+    tname = task.name
+
+    _start_timer('runtime', tname, task_id)
+    statsd.incr('celery.task.%s.prerun' % tname)
+
+@task_postrun.connect
+def task_postrun_handler(task_id, task, *args, **kwargs):
+    statsd = statsd_client()
+    if statsd is None:
+        return
+
+    tname = task.name
+
+    elapsed = _stop_timer('runtime', tname, task_id)
+    if elapsed is not None:
+        statsd.timing('celery.task.%s.t' % tname, elapsed)
+    
+    statsd.incr('celery.task.%s.postrun' % tname)
+
+@task_success.connect
+def task_success_handler(sender, *args, **kwargs):
+    statsd = statsd_client()
+    if statsd is None:
+        return
+
+    statsd.incr('celery.task.%s.success' % sender.name)
+
+@task_failure.connect
+def task_failure_handler(sender, *args, **kwargs):
+    statsd = statsd_client()
+    if statsd is None:
+        return
+    
+    statsd.incr('celery.task.%s.failure' % sender.name)
 
 @connect_on_app_finalize
 def register_tasks(app):
