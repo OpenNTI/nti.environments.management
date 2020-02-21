@@ -7,6 +7,8 @@ This module can be passed as the -A argument of the
 
 from configparser import ConfigParser
 
+from perfmetrics import set_statsd_client
+
 import os
 
 from .celery import configure_celery
@@ -34,6 +36,10 @@ setHooks()
 
 # Load and register our settings first
 config = configure_settings()
+
+if config.has_option('statsd', 'statsd_uri'):
+    uri = config.get('statsd', 'statsd_uri')
+    set_statsd_client(uri)
 
 context = zconfig.ConfigurationMachine()
 
