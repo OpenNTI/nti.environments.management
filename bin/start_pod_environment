@@ -142,6 +142,14 @@ fi
 if [ ! "$runtype" == "init" ]
 then
   #Waiting for the DS to be up
+  echo -n "$(date): Waiting for dataserver socket" 1>&2
+  until [ -e "$podroot/dataserver/run/dataserver.sock" ]
+  do
+      echo -n "." 1>&2
+      sleep 1
+  done
+  echo "" 1>&2
+  echo "$(date): Dataserver socket available" 1>&2
   echo "$(date): Checking if the dataserver is up." 1>&2
   curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 90 http://localhost/_ops/ping 1>&2
   ret=$?
