@@ -127,7 +127,7 @@ then
     echo "" 1>&2
     echo "$(date): Dataserver socket available" 1>&2
     echo "$(date): Checking if the dataserver is up." 1>&2
-    curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 90 http://localhost/_ops/ping 1>&2
+    curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 300 http://localhost/_ops/ping 1>&2
     ret=$?
     if [ $ret -ne 0 ]
     then
