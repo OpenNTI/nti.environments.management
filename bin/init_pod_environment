@@ -5,7 +5,7 @@ source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
 siteID=$(echo $pod | tr [:upper:] [:lower:])
-sitename=$2
+sitename=$(echo $2 |  awk '{gsub(/&/, "\\\\&"); print};') #Escaped so sitename is sed safe
 siteHostname=$3
 adminName=$4
 adminEmail=$5
