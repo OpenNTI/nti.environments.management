@@ -4,6 +4,9 @@ pod=$1
 sitename=$2
 sitehostname=$3
 
+# XML escape characters; this is only used in xml template below
+sitename=$(echo "$sitename" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g')
+
 smtpserver=email-smtp.us-east-1.amazonaws.com
 
 source /etc/nti/container_versions
