@@ -1,48 +1,82 @@
 #!/bin/bash
 
-pod=$1
-
 source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
-echo "Starting $pod environment" 1>&2
-
+pod=$1
 podroot=/opt/pods/$pod
-if [ ! -e "$podroot" ]
+runtype=$2
+
+if [ -z "$runtype" ]
 then
-  echo "Creating $podroot" 1>&2
-  mkdir -p $podroot/
+  runtype="normal"
 fi
 
-t0=$(grep -e "$podroot" /proc/mounts)
-if [ -z "$t0" ]
+echo "$(date): Starting $pod environment" 1>&2
+
+create_pod $pod 1>&2
+ret=$?
+if [ ! "$ret" -eq 0 ]
 then
-  if [ -e "/opt/volumes/$pod.img" ]
-  then
-    echo "Mounting $podroot" 1>&2
-    mount -o loop,rw /opt/volumes/$pod.img $podroot 1>&2
-    ret=$?
-    if [ $ret -ne 0 ]
-    then
-        echo "ABORT! Attempt to mount $pod data volume failed" 1>&2
-        exit 7
-    fi
-  else
-    echo "ABORT! $pod data volume missing" 1>&2
-    exit 6
-  fi
+  exit $ret
 fi
 
-podman pod exists $pod
+mount_pod $pod $podroot 1>&2
+ret=$?
+if [ ! "$ret" -eq 0 ]
+then
+  exit $ret
+fi
+
+podman container exists $pod-dataserver
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  echo "Creating $pod pod" 1>&2
-  podman pod create --name $pod --hostname $pod.nti 1>&2
-  podman pod start $pod 1>&2
+  echo "$(date): Starting $pod-dataserver container" 1>&2
+  if [ ! -e "$podroot/dataserver/data" ]
+  then
+    mkdir -p "$podroot/dataserver/data"
+    chown -R 1000.1000 "$podroot/dataserver/data"
+    chcon -R  system_u:object_r:container_file_t:s0 "$podroot/dataserver/data"
+  fi
+  if [ ! -e "$podroot/dataserver/maildir" ]
+  then
+    mkdir -p "$podroot/dataserver/maildir/{cur,new,tmp}"
+    chown -R 1000.1000 "$podroot/dataserver/maildir"
+    chcon -R  system_u:object_r:container_file_t:s0 "$podroot/dataserver/maildir"
+  fi
+  if [ ! -e "$podroot/dataserver/run" ]
+  then
+    mkdir -p "$podroot/dataserver/run"
+    chown -R 1000.1000 "$podroot/dataserver/run"
+    chcon -R  system_u:object_r:container_file_t:s0 "$podroot/dataserver/run"
+  fi
+  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+  ret=$?
+  if [ "$ret" -eq 0 ]
+  then
+    echo "$(date): $pod-dataserver container running" 1>&2
+  else
+    echo "$(date): ABORT! Failed to start $pod-dataserver" 1>&2
+    echo "$(date): Cleaning up $pod-dataserver."
+    podman rm $pod-dataserver 1>&2
+    exit 13
+  fi
 fi
 
-add_CNAME $pod 1>&2
+podman container exists $pod-redis
+ret=$?
+if [ "$ret" -eq 1 ]
+then
+  podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $podroot/logs/:/var/log/redis:rw --name $pod-redis --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
+fi
+
+podman container exists $pod-statsd-exporter
+ret=$?
+if [ "$ret" -eq 1 ]
+then
+  podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
+fi
 
 podman container exists $pod-solr
 ret=$?
@@ -79,20 +113,6 @@ then
   podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $podroot/logs/nginx:/var/log/nginx:rw --name $pod-nginx --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
 fi
 
-podman container exists $pod-redis
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $podroot/logs/:/var/log/redis:rw --name $pod-redis --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
-fi
-
-podman container exists $pod-statsd-exporter
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
-fi
-
 podman container exists $pod-web-service
 ret=$?
 if [ "$ret" -eq 1 ]
@@ -103,13 +123,6 @@ then
   else
     podman run --pod=$pod --volume $podroot/logs:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   fi
-fi
-
-podman container exists $pod-dataserver
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
 fi
 
 podman container exists $pod-node-exporter
@@ -126,4 +139,28 @@ then
   podman run --pod=$pod --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/splunk/etc:/opt/splunk/etc:rw --volume $podroot/splunk/var:/opt/splunk/var:rw --env SPLUNK_START_ARGS="--accept-license --answer-yes" --entrypoint '[ "entrypoint.sh", "start-service"]' --name $pod-splunk --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk:latest 1>&2
 fi
 
+if [ ! "$runtype" == "init" ]
+then
+  #Waiting for the DS to be up
+  echo -n "$(date): Waiting for dataserver socket" 1>&2
+  until [ -e "$podroot/dataserver/run/dataserver.sock" ]
+  do
+      echo -n "." 1>&2
+      sleep 1
+  done
+  echo "" 1>&2
+  echo "$(date): Dataserver socket available" 1>&2
+  echo "$(date): Checking if the dataserver is up." 1>&2
+  curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 300 http://localhost/_ops/ping 1>&2
+  ret=$?
+  if [ $ret -ne 0 ]
+  then
+    echo "$(date): ABORT! Dataserver failed to start." 1>&2
+    exit 8
+  else
+    start_dataserver_aux_processes $pod
+  fi
+fi
+
 chmod go+r $podroot/logs/*.log
+echo "$(date): $pod environment is running" 1>&2

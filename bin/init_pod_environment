@@ -1,18 +1,76 @@
 #!/bin/bash
 
+source /etc/nti/container_versions
+source /usr/local/lib/nti/nti-container-functions
+
 pod=$1
-sitename=$2
-sitehostname=$3
+siteID=$(echo $pod | tr [:upper:] [:lower:])
+sitename=$(echo $2 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g' | awk '{gsub(/&/, "\\\\&"); print};') #Escaped so sitename is sed/xml safe
+siteHostname=$3
+adminName=$4
+adminEmail=$5
+extra=$6
+
+if [ -z "$pod" ]
+then
+  echo "$(date): ABORT! no pod id specified." 1>&2
+  exit 11
+fi
+
+if [ -z "sitename" ]
+then
+  echo "$(date): ABORT! no site name specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$siteHostname" ]
+then
+  echo "$(date): ABORT! no site hostname specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$adminName" ]
+then
+  echo "$(date): ABORT! no admin name specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$adminEmail" ]
+then
+  echo "$(date): ABORT! no admin email specified." 1>&2
+  exit 11
+fi
+
+if [ ! -z "$extra" ]
+then
+  echo "$(date): ABORT! extra args detected." 1>&2
+  exit 12
+fi
+
+echo $(/usr/bin/env) 1>&2
 
 smtpserver=email-smtp.us-east-1.amazonaws.com
 
-source /etc/nti/container_versions
+JQ=$(which jq)
+if [ ! -e "$JQ" ]
+then
+  echo "$(date): ABORT! Could not find \'jq\' on the path." 1>&2
+  exit 10
+fi
 
 userfile=/root/pods/$pod.json
 
 if [ ! -e /root/pods ]
 then
     mkdir -p /root/pods
+fi
+
+echo "$(date): Initializing $pod environment" 1>&2
+create_pod $pod 1>&2
+ret=$?
+if [ ! "$ret" -eq 0 ]
+then
+  exit $ret
 fi
 
 if [ ! -e $userfile ]
@@ -33,22 +91,73 @@ accesskeyid=$(echo $accesskey | jq .AccessKey.AccessKeyId | sed -e 's|"||g')
 secretaccesskey=$(echo $accesskey | jq .AccessKey.SecretAccessKey | sed -e 's|"||g')
 smtppass=$(computeSEScreds --region us-east-1 --secret $secretaccesskey)
 podroot=/opt/pods/$pod
-mkdir -p $podroot
 
 if [ ! -e "/opt/volumes/$pod.img" ]
 then
-    echo "Creating and initializing data volume for pod $pod" 1>&2
+    echo "$(date): Creating and initializing data volume for pod $pod" 1>&2
     dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=20 1>&2
     mkfs.xfs /opt/volumes/$pod.img 1>&2
-    mount -o loop,rw /opt/volumes/$pod.img $podroot 1>&2
+
+    mount_pod $pod $podroot 1>&2
+    ret=$?
+    if [ ! "$ret" -eq 0 ]
+    then
+      exit $ret
+    fi
+
     rsync --archive --quiet /opt/pods/base/ $podroot 1>&2
     cat /opt/pods/base/dataserver/.boto | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
     cat /opt/pods/base/dataserver/etc/pserve.ini | sed -e "s|\$SMTP_SERVER|$smtpserver|g" -e "s|\$SMTP_USER|$accesskeyid|g" -e "s|\$SMTP_PASSWORD|$smtppass|g" > $podroot/dataserver/etc/pserve.ini
-    cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$pod|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$sitehostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
+    cat /opt/pods/base/dataserver/etc/package-includes/777-nti.app.analytics.zcml | sed -e "s|\$SITE_ID|$siteID|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$siteHostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     chcon -R  system_u:object_r:container_file_t:s0 $podroot
-    start_pod_environment $pod
-    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
-    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod
+
+    start_pod_environment $pod init
+    ret=$?
+    if [ ! "$ret" -eq 0 ]
+    then
+      echo "$(date): $pod environment startup failed" 1>&2
+      exit $ret
+    fi
+    echo -n "$(date): Waiting for dataserver socket" 1>&2
+    until [ -e "$podroot/dataserver/run/dataserver.sock" ]
+    do
+        echo -n "." 1>&2
+        sleep 1
+    done
+    echo "" 1>&2
+    echo "$(date): Dataserver socket available" 1>&2
+    echo "$(date): Checking if the dataserver is up." 1>&2
+    curl -sS --unix-socket /opt/pods/$pod/dataserver/run/dataserver.sock --max-time 300 http://localhost/_ops/ping 1>&2
+    ret=$?
+    if [ $ret -ne 0 ]
+    then
+      echo "$(date): ABORT! Dataserver failed to start." 1>&2
+      exit 8
+    else
+      echo "$(date): The dataserver is accepting requests." 1>&2
+      podlist=$(podman pod ps --format json | "$JQ" --compact-output '[.[] | select(.name | test("S[a-f0-9]?")).name] | reduce .[] as $item ({}; .environments += [$item])')
+      echo "$(date): Creating admin invite." 1>&2
+      invite_args=$("$JQ" --null-input "{invitations: [{receiver: \"$adminEmail\",receiver_name: \"$adminName\"}], MimeType: \"application/vnd.nextthought.siteadmininvitation\"}")
+      admin_key=$(cat $podroot/dataserver/data/.admin.key)
+      invite=$(curl -sS --unix-socket $podroot/dataserver/run/dataserver.sock --header "Authorization:Bearer $admin_key" --header "X-Requested-With:XMLHttpRequest" --header "Content-Type: application/json" --header "Host: $siteID" --request POST "http://$siteID/dataserver2/Invitations/@@create-site-invitation" --data "$invite_args")
+      ret=$?
+      if [ $ret -ne 0 ]
+      then
+        echo "$(date): ABORT! Failed to create admin invite." 1>&2
+        exit 9
+      else
+        echo "$invite$podlist" | "$JQ" --slurp ".[0] * .[1] | {admin_invitation: .Items[0].Links[] | select(.rel==\"redeem\") | .href,admin_invitation_code: .Items[0].Code, host_system: \"$(hostname)\", peer_environments: .environments}"
+      fi
+    fi
+#    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
+    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod 1>&2
+    start_dataserver_aux_processes $pod 1>&2
 else
-    start_pod_environment $pod
+    start_pod_environment $pod normal 1>&2
+    ret=$?
+    if [ ! "$ret" -eq 0 ]
+    then
+      echo "$(date): $pod environment startup failed" 1>&2
+      exit $ret
+    fi
 fi

@@ -1,6 +1,9 @@
 #!/bin/bash
 
 source /etc/nti/container_versions
+
+refresh_ecr_login
+
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/solr
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/rsyslog
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy

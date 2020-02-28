@@ -4,7 +4,7 @@ function add_CNAME () {
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
     hostSystem=$(hostname)
-    echo "Adding CNAME record for $podHostName"
+    echo "$(date): Adding CNAME record for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
 prereq yxdomain $infraIDHostName
 update add $podHostName 150 CNAME $infraIDHostName
@@ -19,7 +19,7 @@ function remove_CNAME (){
     infraID=$(podman pod inspect $pod | jq ".State.infraContainerID[0:12]" | sed -e "s|\"||g")
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
-    echo "Removing CNAME record for $podHostName"
+    echo "$(date): Removing CNAME record for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
 prereq yxdomain $podHostName
 update delete $podHostName
@@ -29,4 +29,77 @@ update delete $podHostName.host.nti
 send
 quit
 EOF
+}
+
+function mount_pod (){
+  pod=$1
+  podroot=$2
+  t0=$(grep -e "$podroot" /proc/mounts)
+  if [ -z "$t0" ]
+  then
+    if [ -e "/opt/volumes/$pod.img" ]
+    then
+      if [ ! -e "$podroot" ]
+      then
+        echo "$(date): Creating $podroot"
+        mkdir -p $podroot/
+      fi
+      echo "$(date): Mounting $podroot"
+      mount -o loop,rw /opt/volumes/$pod.img $podroot
+      ret=$?
+      if [ $ret -ne 0 ]
+      then
+          echo "$(date): ABORT! Attempt to mount $pod data volume failed"
+          return 7
+      fi
+    else
+      echo "$(date): ABORT! $pod data volume missing"
+      return 6
+    fi
+  else
+    echo "$(date): $pod data volume already mounted"
+  fi
+}
+
+function create_pod (){
+  pod=$1
+
+  podman pod exists $pod
+  ret=$?
+  if [ "$ret" -eq 1 ]
+  then
+    echo "$(date): Creating $pod pod"
+    podman pod create --name $pod --hostname $pod.nti
+    ret=$?
+    if [ $ret -eq 0 ]
+    then
+      podman pod start $pod
+      ret=$?
+      if [ $ret -eq 0 ]
+      then
+        add_CNAME $pod
+      else
+        echo "$(date): ABORT! Failed to start pod $pod."
+        return 15
+      fi
+    else
+      echo "$(date): ABORT! Failed to create pod $pod."
+      return 14
+    fi
+  fi
+}
+
+function start_dataserver_aux_processes (){
+  pod=$1
+  
+  podman container exists $pod-dataserver
+  ret=$?
+  if [ "$ret" -eq 0 ]
+  then
+    echo "$(date): Starting dataserver auxilary processes"
+    podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl start server:*
+  else
+    echo "$(date): ABORT! No dataserver container is running in the $pod environment."
+    return 16
+  fi
 }
