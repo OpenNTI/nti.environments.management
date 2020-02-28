@@ -258,7 +258,7 @@ class SiteInfo(object):
 
     @property
     def host(self):
-        return self._get_result_val('host')
+        return self._get_result_val('host_system')
 
 
 @interface.implementer(ISetupEnvironmentTask)
