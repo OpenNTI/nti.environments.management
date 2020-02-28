@@ -260,6 +260,18 @@ class SiteInfo(object):
     def host(self):
         return self._get_result_val('host_system')
 
+    @property
+    def peer_environments(self):
+        """
+        A one-time use variable that we will pop from our stored info.
+        """
+        try:
+            result = self.task_result_dict.pop('peer_environments', None)
+        except (KeyError, TypeError):
+            result = None
+        return result
+
+
 
 @interface.implementer(ISetupEnvironmentTask)
 class SetupEnvironmentTask(AbstractTask):
