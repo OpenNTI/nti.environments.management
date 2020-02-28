@@ -135,9 +135,9 @@ then
       exit 8
     else
       echo "$(date): The dataserver is accepting requests." 1>&2
+      podlist=$(podman pod ps --format json | "$JQ" --compact-output '[.[] | select(.name | test("S[a-f0-9]?")).name] | reduce .[] as $item ({}; .environments += [$item])')
       echo "$(date): Creating admin invite." 1>&2
       invite_args=$("$JQ" --null-input "{invitations: [{receiver: \"$adminEmail\",receiver_name: \"$adminName\"}], MimeType: \"application/vnd.nextthought.siteadmininvitation\"}")
-#      invite=$(podman exec $pod-dataserver /home/ntiuser/buildout/bin/nti_invite_user "$adminEmail" "$siteHostname" --realname "$adminName" --admin --json 2>/dev/null)
       admin_key=$(cat $podroot/dataserver/data/.admin.key)
       invite=$(curl -sS --unix-socket $podroot/dataserver/run/dataserver.sock --header "Authorization:Bearer $admin_key" --header "X-Requested-With:XMLHttpRequest" --header "Content-Type: application/json" --header "Host: $siteID" --request POST "http://$siteID/dataserver2/Invitations/@@create-site-invitation" --data "$invite_args")
       ret=$?
@@ -146,7 +146,7 @@ then
         echo "$(date): ABORT! Failed to create admin invite." 1>&2
         exit 9
       else
-        echo $invite | "$JQ" "{admin_invitation: .Items[0].Links[] | select(.rel==\"redeem\") | .href,admin_invitation_code: .Items[0].Code, host_system: \"$(hostname)\"}"
+        echo "$invite$podlist" | "$JQ" --slurp ".[0] * .[1] | {admin_invitation: .Items[0].Links[] | select(.rel==\"redeem\") | .href,admin_invitation_code: .Items[0].Code, host_system: \"$(hostname)\", peer_environments: .environments}"
       fi
     fi
 #    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
