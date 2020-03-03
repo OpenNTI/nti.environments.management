@@ -5,6 +5,7 @@ source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
 podroot=/opt/pods/$pod
+logroot=/opt/pods/logs/$pod
 runtype=$2
 
 if [ -z "$runtype" ]
@@ -51,7 +52,13 @@ then
     chown -R 1000.1000 "$podroot/dataserver/run"
     chcon -R  system_u:object_r:container_file_t:s0 "$podroot/dataserver/run"
   fi
-  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+  if [ ! -e "$logroot" ]
+  then
+    mkdir -p "$logroot"
+    chmod 1777 "$logroot"
+    chcon -R  system_u:object_r:container_file_t:s0 "$logroot"
+  fi
+  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   ret=$?
   if [ "$ret" -eq 0 ]
   then
@@ -89,7 +96,7 @@ podman container exists $pod-rsyslog
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --volume $podroot/logs:/var/log:rw --name $pod-rsyslog --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/rsyslog:latest 1>&2
+  podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-rsyslog --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/rsyslog:latest 1>&2
 fi
 
 podman container exists $pod-haproxy
@@ -110,7 +117,7 @@ podman container exists $pod-nginx
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $podroot/logs/nginx:/var/log/nginx:rw --name $pod-nginx --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
+  podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $logroot:/var/log:rw --name $pod-nginx --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
 fi
 
 podman container exists $pod-web-service
@@ -119,9 +126,9 @@ if [ "$ret" -eq 1 ]
 then
   if [ -e "$podroot/overrides/webservice" ]
   then
-    podman run --pod=$pod --volume $podroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $podroot/logs:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+    podman run --pod=$pod --volume $podroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   else
-    podman run --pod=$pod --volume $podroot/logs:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+    podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   fi
 fi
 
@@ -130,13 +137,6 @@ ret=$?
 if [ "$ret" -eq 1 ]
 then
   podman run --pod=$pod --name $pod-node-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/node-exporter:latest 1>&2
-fi
-
-podman container exists $pod-splunk
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --volume $podroot/logs:/home/ntiuser/buildout/var/log:rw --volume $podroot/splunk/etc:/opt/splunk/etc:rw --volume $podroot/splunk/var:/opt/splunk/var:rw --env SPLUNK_START_ARGS="--accept-license --answer-yes" --entrypoint '[ "entrypoint.sh", "start-service"]' --name $pod-splunk --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk:latest 1>&2
 fi
 
 if [ ! "$runtype" == "init" ]
