@@ -9,8 +9,7 @@ $pod-nginx
 $pod-redis
 $pod-statsd-exporter
 $pod-node-exporter
-$pod-rsyslog
-$pod-splunk"
+$pod-rsyslog"
 
 podman container exists $pod-dataserver
 ret=$?
