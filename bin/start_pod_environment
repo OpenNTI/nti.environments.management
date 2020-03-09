@@ -5,7 +5,7 @@ source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
 podroot=/opt/pods/$pod
-logroot=/opt/pods/logs/$pod
+logroot=/opt/pods/logs/$pod.nti
 runtype=$2
 
 if [ -z "$runtype" ]
