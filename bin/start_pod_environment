@@ -101,13 +101,6 @@ then
   podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
 fi
 
-podman container exists $pod-solr
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --volume $podroot/solr-data:/opt/solr/conf/nti/data:rw --name $pod-solr --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/solr 1>&2
-fi
-
 podman container exists $pod-haproxy
 ret=$?
 if [ "$ret" -eq 1 ]
