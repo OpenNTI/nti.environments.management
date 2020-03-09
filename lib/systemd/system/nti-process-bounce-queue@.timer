@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the bounce queue processing job for dedicated environment %i daily
+
+[Timer]
+OnCalendar=*-*-* 13:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

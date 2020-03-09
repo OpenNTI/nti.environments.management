@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh admin auth token for dedicated environment %i weekly
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+[Unit]
+Description= Bounce queue processing service for dedicated environment %i
+AssertPathExists=/opt/pods/%i/dataserver/data/.admin.key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec %i-dataserver bash /usr/local/bin/process_bounce_queue

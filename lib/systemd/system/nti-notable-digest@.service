@@ -1,0 +1,7 @@
+[Unit]
+Description= Notable service for dedicated environment %i
+AssertPathExists=/opt/pods/%i/dataserver/data/.admin.key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec %i-dataserver notable_digest
