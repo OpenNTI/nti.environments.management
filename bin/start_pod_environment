@@ -58,6 +58,10 @@ then
     chmod 1777 "$logroot"
     chcon -R  system_u:object_r:container_file_t:s0 "$logroot"
   fi
+  if [ ! -e "$podroot/logs" ]
+  then
+    ln -s "$logroot" "$podroot/logs"
+  fi
   if [ ! -e "$podroot/assets/default-assets/site-assets" ]
   then
     mkdir -p "$podroot/assets/default-assets/site-assets"
