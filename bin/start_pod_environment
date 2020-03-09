@@ -87,7 +87,7 @@ podman container exists $pod-redis
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $podroot/logs/:/var/log/redis:rw --name $pod-redis --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
+  podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $logroot:/var/log/redis:rw --name $pod-redis --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
 fi
 
 podman container exists $pod-statsd-exporter
@@ -104,25 +104,11 @@ then
   podman run --pod=$pod --volume $podroot/solr-data:/opt/solr/conf/nti/data:rw --name $pod-solr --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/solr 1>&2
 fi
 
-podman container exists $pod-rsyslog
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-rsyslog --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/rsyslog:latest 1>&2
-fi
-
 podman container exists $pod-haproxy
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --volume $podroot/run:/run:rw --name $pod-haproxy --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
-fi
-
-podman container exists $pod-haproxy-exporter
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --volume $podroot/run:/run:rw --name $pod-haproxy-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/haproxy-exporter 1>&2
+  podman run --pod=$pod --volume $podroot/run:/run:rw --volume $logroot:/var/log:rw --name $pod-haproxy --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
 fi
 
 podman container exists $pod-nginx
@@ -142,13 +128,6 @@ then
   else
     podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   fi
-fi
-
-podman container exists $pod-node-exporter
-ret=$?
-if [ "$ret" -eq 1 ]
-then
-  podman run --pod=$pod --name $pod-node-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/node-exporter:latest 1>&2
 fi
 
 if [ ! "$runtype" == "init" ]
