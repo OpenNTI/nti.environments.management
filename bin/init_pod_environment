@@ -149,8 +149,6 @@ then
         echo "$invite$podlist" | "$JQ" --slurp ".[0] * .[1] | {admin_invitation: .Items[0].Links[] | select(.rel==\"redeem\") | .href,admin_invitation_code: .Items[0].Code, host_system: \"$(hostname)\", peer_environments: .environments}"
       fi
     fi
-#    systemd-run --on-active=60 --timer-property=AccuracySec=100ms create_initial_service_account $pod
-    systemd-run --on-active=60 --timer-property=AccuracySec=100ms init_splunk_container $pod 1>&2
     start_dataserver_aux_processes $pod 1>&2
 else
     start_pod_environment $pod normal 1>&2

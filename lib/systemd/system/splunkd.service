@@ -1,0 +1,21 @@
+[Unit]
+Description=Splunk Enterprise 6.5.0
+After=network.target
+Wants=network.target
+
+[Service]
+Type=forking
+RemainAfterExit=False
+User=root
+Group=root
+LimitNOFILE=65536
+ExecStart=/opt/splunk/bin/splunk start --accept-license --answer-yes --no-prompt
+ExecStop=/opt/splunk/bin/splunk stop
+ExecReload=/opt/splunkforwarder/bin/splunk restart
+PIDFile=/opt/splunk/var/run/splunk/splunkd.pid
+
+[Install]
+WantedBy=multi-user.target
+# If you want to use $(systemctl [start|stop|restart] splunk) instead of splunkd ...
+Alias=splunk.service
+

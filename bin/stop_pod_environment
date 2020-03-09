@@ -9,14 +9,13 @@ $pod-nginx
 $pod-redis
 $pod-statsd-exporter
 $pod-node-exporter
-$pod-rsyslog
-$pod-splunk"
+$pod-rsyslog"
 
 podman container exists $pod-dataserver
 ret=$?
 if [ "$ret" -eq 0 ]
 then
-    podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown
+    podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown 1>&2
 fi
 
 for container in $CONTAINERS
@@ -25,7 +24,7 @@ do
     ret=$?
     if [ "$ret" -eq 0 ]
     then
-        podman stop $container
+        podman stop $container 1>&2
     fi
 done
 
@@ -35,7 +34,7 @@ do
     ret=$?
     if [ "$ret" -eq 0 ]
     then
-        podman rm $container
+        podman rm $container 1>&2
     fi
 done
 
