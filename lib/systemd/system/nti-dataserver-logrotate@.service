@@ -1,0 +1,6 @@
+[Unit]
+Description=Rotates dataserver logs for dedicated environment %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec --user root:root $pod-dataserver logrotate -v /etc/logrotate.conf

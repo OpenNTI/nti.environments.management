@@ -1,0 +1,6 @@
+[Unit]
+Description=Refresh admin auth token for dedicated environment %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec $pod-dataserver refresh_auth_token

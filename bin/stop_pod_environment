@@ -15,6 +15,18 @@ podman container exists $pod-dataserver
 ret=$?
 if [ "$ret" -eq 0 ]
 then
+    systemctl disable "nti-dataserver-logrotate@$pod.service" 1>&2
+    systemctl disable "nti-dataserver-logrotate@$pod.timer" 1>&2
+    systemctl stop "nti-dataserver-logrotate@$pod.timer" 1>&2
+    systemctl disable "nti-notable-digest@$pod.service" 1>&2
+    systemctl disable "nti-notable-digest@$pod.timer" 1>&2
+    systemctl stop "nti-notable-digest@$pod.timer" 1>&2
+    systemctl disable "nti-process-bounce-queue@$pod.service" 1>&2
+    systemctl disable "nti-process-bounce-queue@$pod.timer" 1>&2
+    systemctl stop "nti-process-bounce-queue@$pod.timer" 1>&2
+    systemctl disable "nti-refresh-auth-token@$pod.service" 1>&2
+    systemctl disable "nti-refresh-auth-token@$pod.timer" 1>&2
+    systemctl stop "nti-refresh-auth-token@$pod.timer" 1>&2
     podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown 1>&2
 fi
 
