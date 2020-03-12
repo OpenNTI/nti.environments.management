@@ -34,15 +34,15 @@ ret=$?
 if [ "$ret" -eq 1 ]
 then
   echo "$(date): Starting $pod-dataserver container" 1>&2
-  if [ ! -e "$podroot/dataserver/data" ]
+  if [ ! -e "$podroot/dataserver/data/relstorages_users_storage" ]
   then
-    mkdir -p "$podroot/dataserver/data"
+    mkdir -p "$podroot/dataserver/data/relstorages_users_storage"
     chown -R 1000.1000 "$podroot/dataserver/data"
     chcon -R system_u:object_r:container_file_t:s0 "$podroot/dataserver/data"
   fi
   if [ ! -e "$podroot/dataserver/maildir" ]
   then
-    mkdir -p "$podroot/dataserver/maildir/{cur,new,tmp}"
+    mkdir -p "$podroot/dataserver/maildir/"{cur,new,tmp}
     chown -R 1000.1000 "$podroot/dataserver/maildir"
     chcon -R system_u:object_r:container_file_t:s0 "$podroot/dataserver/maildir"
   fi
@@ -103,6 +103,12 @@ podman container exists $pod-redis
 ret=$?
 if [ "$ret" -eq 1 ]
 then
+  if [ ! -e "$podroot/redis" ]
+  then
+    mkdir -p "$podroot/redis"
+    chown -R 998.996 "$podroot/redis"
+    chcon -R system_u:object_r:container_file_t:s0 "$podroot/redis"
+  fi
   podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $logroot:/var/log/redis:rw --name $pod-redis --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
 fi
 
@@ -117,6 +123,11 @@ podman container exists $pod-haproxy
 ret=$?
 if [ "$ret" -eq 1 ]
 then
+  if [ ! -e "$podroot/run" ]
+  then
+    mkdir -p "$podroot/run"
+    chcon -R system_u:object_r:container_file_t:s0 "$podroot/run"
+  fi
   podman run --pod=$pod --volume $podroot/run:/run:rw --volume $logroot:/var/log:rw --name $pod-haproxy --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
 fi
 

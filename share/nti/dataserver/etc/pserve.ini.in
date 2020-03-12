@@ -1,0 +1,227 @@
+#####
+### Configuration strategy
+# Paste sucks at deployment configuration. It has no support for
+# composing configuration information (e.g., includes) and no support
+# for default values that can be overridden on the command line
+# (see https://bitbucket.org/ianb/pastedeploy/issue/7/).
+# Therefore we have no alternative but to make stupid COPIES
+# of config files for each machine/scenario.
+# Way to go, guys.
+# For that reason, we'll try to keep all the stuff you'd want to change
+# in the DEFAULT section rather than trying to spread it throughout the file
+# and easily miss something.
+###
+## XXX: NOTE: With the use of buildout, this has finally changed!
+## Yay!!!
+#####
+
+# Application setup:
+# For working with Gunicorn, we define only the main app entry
+# point. It is pointed to a dummy app, because preloading does not
+# work when combined with threads. The actual true application is hosted in
+# the 'pipeline:dataserver_gunicorn' which is loaded manually by gunicorn.py
+# in worker processes.
+
+[pserve]
+
+[DEFAULT]
+the_deploy_root = /srv/content
+sync_changes = True
+
+[app:dataserver] #nti.appserver.standalone:configure_app
+use = egg:nti.dataserver
+# Insert filter-with = linesman to enable profiling at /__profiler__
+# see http://packages.python.org/linesman/
+#filter-with = linesman
+nti_create_ds = 1
+main_dictionary_path = /usr/local/share/wiktionary/dict.db
+# The site_zcml setting, if defined, is a path to a ZCML file
+# loaded after the standard config is loaded
+# Deprecated, handled with buildout
+# site_zcml = /path/to/site.zcml
+# deploy_root = %(deploy_root)s
+sync_changes = %(sync_changes)s
+
+secure_cookies = 1
+cookie_secret = localhost
+session_cookie_secret = localhost
+facebook.app.id = 272442356159055
+facebook.app.secret = 964997cea8939ffae988668f6c634f0c
+
+gc_debug = False
+gc_gen0_threshold = 700
+gc_gen1_threshold = 10
+gc_gen2_threshold = 10
+
+# If this is defined, perfmetrics is active and establishes
+# the statsd client stack.
+# Note: because this is UDP, even if
+# this is not running, it's fine to send to this port
+# NOTE2: 'localhost' is ambiguous if the host supports both IPv4 and IPv6.
+# (I've seen statsd server choose ipv4 and statsd client choose ipv6)
+# choose an IP address to avoid ambiguity
+statsd_uri = statsd://127.0.0.1:9125?prefix=pserve
+
+# pyramid.reload_templates = true
+
+# Application route prefixes
+# XXX: TODO: work on this, there's too much
+# knowledge spread around
+web_app_root = /app/
+login_app_root = /login/
+invitation_redirect_url = /login/accept-invite/
+###
+## Purchase email confirmations
+# For site policies that load the 'send additional purchase confirmation subscriber',
+# these addressess will get the emails.
+# A whitespace separated list
+###
+purchase_additional_confirmation_addresses = 
+
+###
+# Concurrent enrollment email addresses
+# For site policies that load the 'send additional enrollment confirmation subscriber',
+# these addressess will get the emails.
+# A whitespace separated list
+###
+concurrent_enrollment_addresses = nti-testing@nextthought.com
+
+###
+# I2 BCC enrollment addresses
+# A whitespace separated list
+###
+i2_enrollment_addresses = 
+
+# Flag to send emails to non-NT addresses
+email_externally = false
+
+get sync_changes = sync_changes
+
+## pyramid_mailer
+mail.host = $SMTP_SERVER 
+# port 25 is often blocked by ISPs, use one of the alternates, 465 or 587
+mail.port = 587
+mail.tls = true
+mail.username = $SMTP_USER
+mail.default_sender = no-reply@nextthought.com
+mail.debug = 5
+mail.password = $SMTP_PASSWORD
+mail.queue_path = /home/ntiuser/buildout/var/maildir
+pyramid.includes = pyramid_mailer 
+
+# AWS cloud search
+
+[filter:linesman]
+use = egg:linesman#profiler
+
+[filter:paste_error]
+use = egg:Paste#error_catcher
+# Do we return the traceback in the HTML page?
+# for environments outside of development, no, we don't
+# want to, it has sensitive data
+debug = false
+# Always put these in the wsgi error log (pserve-stderr...)
+show_exceptions_in_wsgi_errors = true
+error_email = server-errors@nextthought.com
+smtp_server = $SMTP_SERVER
+from_address = automated.emails@nextthought.com
+smtp_username = $SMTP_USER
+smtp_password = $SMTP_PASSWORD
+smtp_use_tls = true
+error_subject_prefix = Error
+
+# CORS needs to be outermost so that even 401 errors ond
+# exceptions have the chance to get their responses wrapped
+[filter:nti_cors]
+use = egg:nti.wsgi.cors#cors
+
+[filter:nti_cors_options]
+use = egg:nti.wsgi.cors#cors_options
+
+[app:main]
+use = egg:nti.dataserver#gunicorn
+
+[pipeline:dataserver_gunicorn]
+pipeline =
+		 egg:nti.dataserver#ops_ping
+		 egg:nti.dataserver#ops_identify
+		 nti_cors
+		 nti_cors_options
+		 egg:Paste#gzip
+		 paste_error
+		 dataserver
+
+[server:main]
+use = egg:nti.dataserver#gunicorn
+config = /home/ntiuser/buildout/etc/gunicorn.conf.py
+
+# Begin logging configuration
+
+[loggers]
+keys = root, dataserver, repoze, plastex, boto, zodb, zope, relstorage
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = INFO
+handlers = console
+
+[logger_dataserver]
+level = DEBUG
+handlers =
+qualname = nti
+
+[logger_repoze]
+level = WARNING
+handlers =
+qualname = repoze
+
+[logger_boto]
+level = INFO
+handlers =
+qualname = boto
+
+[logger_plastex]
+level = WARNING
+handlers =
+qualname = plasTeX
+
+# When this configuration is installed,
+# if there had already been calls to logging.getLogger() made
+# (such as by imports), then any existing logger
+# is disabled and doesn't inherit the root configuration.
+# The only exceptios is if there was a named section for them
+# in this config.
+# So it is critical to list such things here so they don't
+# get turned off
+
+[logger_zope]
+level = INFO
+handlers =
+qualname = zope
+
+[logger_zodb]
+level = DEBUG
+handlers =
+qualname = ZODB
+
+[logger_relstorage]
+level = DEBUG
+handlers =
+qualname = relstorage
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(asctime)s %(levelname)-5.5s [%(name)s][%(thread)d:%(process)d][%(threadName)s] %(message)s
+class = zope.exceptions.log.Formatter
+
+# End logging configuration

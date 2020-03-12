@@ -1,0 +1,23 @@
+%import zc.zlibstorage
+%import relstorage
+<zodb Users>
+    pool-size 20
+    database-name Users
+    cache-size 10000
+    <zlibstorage Users>
+    <relstorage Users>
+        blob-dir /home/ntiuser/buildout/data/Users.blobs
+        shared-blob-dir true
+        commit-lock-timeout 60
+        cache-local-mb 0
+        name xxxUsers
+        keep-history false
+        pack-gc false
+        <sqlite3>
+            driver gevent sqlite3
+            gevent_yield_interval 100
+            data-dir /home/ntiuser/buildout/data/relstorages_users_storage/
+        </sqlite3>
+    </relstorage>
+</zlibstorage>
+</zodb>

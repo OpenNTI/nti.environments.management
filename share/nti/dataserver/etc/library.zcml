@@ -1,0 +1,14 @@
+<configure xmlns="http://namespaces.zope.org/zope"
+		   xmlns:zcml="http://namespaces.zope.org/zcml"
+		   xmlns:lib="http://nextthought.com/ntp/contentlibrary"
+		   i18n_domain='nti.dataserver'>
+
+	<include package="zope.component" />
+	<include package="nti.contentlibrary" file="meta.zcml" />
+
+	<lib:filesystemLibrary
+		directory="/srv/content"
+prefix="/content/"
+		/>
+
+</configure>

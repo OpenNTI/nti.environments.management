@@ -1,0 +1,42 @@
+<!-- -*- mode: nxml -*- -->
+<configure	xmlns="http://namespaces.zope.org/zope"
+			xmlns:i18n="http://namespaces.zope.org/i18n"
+			xmlns:zcml="http://namespaces.zope.org/zcml"
+			xmlns:appsite="http://nextthought.com/ntp/appsite"
+			xmlns:ana="http://nextthought.com/analytics"
+			xmlns:adb="http://nextthought.com/analytics/database"
+			xmlns:sites="http://nextthought.com/sites"
+			xmlns:sp="http://nextthought.com/ntp/sitepolicy">
+
+	<include package="zope.component" file="meta.zcml" />
+	<include package="zope.security" file="meta.zcml" />
+	<include package="zope.component" />
+	<include package="nti.app.site" file="meta.zcml" />
+	<include package="nti.appserver.policies" file="meta.zcml" />
+	<include package="nti.analytics" file="meta.zcml" />
+	<include package="nti.analytics_database" file="meta.zcml" />
+	<include package="nti.site" file="meta.zcml" />
+
+	<appsite:createBaseComponents bases="nti.appserver.policies.sites.BASEADULT" 
+								  name="$SITE_ID" />
+
+	<appsite:registerInNamedComponents registry="$SITE_ID">
+		<sp:createSitePolicy brand="$SITE_NAME" 
+							 display_name="$SITE_NAME" 
+							 com_username="$SITE_ID" />
+		<adb:registerAnalyticsDB
+				defaultSQLite="True"
+				twophase="False"
+				echo="True"
+				autocommit="False" />
+		<ana:registerImmediateProcessingQueue />
+
+	</appsite:registerInNamedComponents>
+
+	<utility factory="nti.app.site.subscribers.MostRecentSiteMappingPreferredHostnameProvider"
+		provides="nti.appserver.interfaces.IPreferredAppHostnameProvider" />
+
+	<sites:registerSiteMapping source_site_name="$SITE_HOSTNAME"
+                target_site_name="$SITE_ID" />
+	
+</configure>
