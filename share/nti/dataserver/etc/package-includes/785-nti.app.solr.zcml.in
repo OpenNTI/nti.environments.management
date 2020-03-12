@@ -1,0 +1,10 @@
+<!-- -*- mode: nxml -*- -->
+<configure	xmlns="http://namespaces.zope.org/zope"
+			xmlns:i18n="http://namespaces.zope.org/i18n"
+			xmlns:zcml="http://namespaces.zope.org/zcml"
+			xmlns:solr="http://nextthought.com/ntp/solr">
+
+	<include package="nti.solr" file="meta.zcml" />
+	<solr:registerSOLR url="http://$SOLR_HOST:8983/solr" />
+
+</configure>

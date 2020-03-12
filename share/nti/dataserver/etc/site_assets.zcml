@@ -1,0 +1,12 @@
+<configure xmlns="http://namespaces.zope.org/zope"
+		   xmlns:zcml="http://namespaces.zope.org/zcml"
+		   xmlns:appsite="http://nextthought.com/ntp/appsite"
+		   i18n_domain='nti.dataserver'>
+
+	<include package="zope.component" />
+	<include package="nti.app.site" file="meta.zcml" />
+
+	<appsite:siteAssetsFileSystemLocation
+		     directory="/srv/assets"
+prefix="/site-assets/" />
+</configure>

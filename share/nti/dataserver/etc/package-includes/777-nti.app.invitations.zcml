@@ -1,0 +1,13 @@
+<!-- -*- mode: nxml -*- -->
+<configure	xmlns="http://namespaces.zope.org/zope"
+			xmlns:i18n="http://namespaces.zope.org/i18n"
+			xmlns:zcml="http://namespaces.zope.org/zcml"
+			xmlns:inv="http://nextthought.com/ntp/invitations">
+
+	<include package="nti.app.invitations" file="meta.zcml" />
+
+	<inv:registerInvitationSigner
+				secret="LVIrExg7VD0mOh5ySDkZfgkuYxxVJBI7JWxKD3lwNgA="
+				salt="nti-invitations" />
+
+</configure>

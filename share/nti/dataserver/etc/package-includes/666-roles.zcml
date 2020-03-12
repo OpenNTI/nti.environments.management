@@ -1,0 +1,40 @@
+<configure	xmlns="http://namespaces.zope.org/zope"
+			xmlns:i18n="http://namespaces.zope.org/i18n"
+			xmlns:sp="http://nextthought.com/ntp/securitypolicy"
+			i18n_domain='nti.dataserver'
+			i18n:domain='nti.dataserver'>
+
+	<include file="meta.zcml" package="zope.security" />
+	<include file="meta.zcml" package="zope.securitypolicy" />
+	<include file="meta.zcml" package="nti.securitypolicy" />
+
+	<!-- Define a permission. This string will be repeated in the @view_config -->
+	<permission id="nti.actions.contentlibrary.sync_library" title="Sync the content library"/>
+
+	<!-- Define a role, the easier to group permissions -->
+	<role	id="nti.roles.contentlibrary.admin"
+			title="Content library administrators"
+			description="..."/>
+
+	<role	id="role:nti.globalsupport.admin"
+			title="Roles for global support administrators" />
+	<grant 	permission="nti.actions.impersonate"
+			role="role:nti.globalsupport.admin" />
+
+	<!-- Give the permission to the role -->
+	<grant	permission="nti.actions.contentlibrary.sync_library"
+			role="nti.roles.contentlibrary.admin"/>
+
+	<!-- Content editing -->
+	<role	id="role:nti.content.editor" title="Content editors"
+			description="..."/>
+
+	<grant	permission="nti.actions.contentedit"
+			role="role:nti.content.editor"/>
+
+	<!--
+	Principals *COULD* be defined here too, but for maintenance reasons it's
+	probably best to define them in the environment files.
+	-->
+
+</configure>
