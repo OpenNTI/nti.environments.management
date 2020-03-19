@@ -106,7 +106,7 @@ then
     fi
 
     rsync --archive --quiet /usr/local/share/nti/dataserver $podroot 1>&2
-    cat /usr/local/share/nti/dataserver/boto.in | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
+    cat /usr/local/share/nti/dataserver/.boto.in | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
     cat /usr/local/share/nti/dataserver/etc/pserve.ini.in | sed -e "s|\$SMTP_SERVER|$smtpserver|g" -e "s|\$SMTP_USER|$accesskeyid|g" -e "s|\$SMTP_PASSWORD|$smtppass|g" > $podroot/dataserver/etc/pserve.ini
     cat /usr/local/share/nti/dataserver/etc/package-includes/777-nti.app.analytics.zcml.in | sed -e "s|\$SITE_ID|$siteID|g" -e "s|\$SITE_NAME|$sitename|g" -e "s|\$SITE_HOSTNAME|$siteHostname|g" > $podroot/dataserver/etc/package-includes/777-nti.app.analytics.zcml
     cat /usr/local/share/nti/dataserver/etc/package-includes/785-nti.app.solr.zcml.in | sed -e "s|\$SOLR_HOST|$solrhost|g" > $podroot/dataserver/etc/package-includes/785-nti.app.solr.zcml
