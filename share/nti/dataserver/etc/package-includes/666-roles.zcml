@@ -8,9 +8,6 @@
 	<include file="meta.zcml" package="zope.securitypolicy" />
 	<include file="meta.zcml" package="nti.securitypolicy" />
 
-	<!-- Define a permission. This string will be repeated in the @view_config -->
-	<permission id="nti.actions.contentlibrary.sync_library" title="Sync the content library"/>
-
 	<!-- Define a role, the easier to group permissions -->
 	<role	id="nti.roles.contentlibrary.admin"
 			title="Content library administrators"
