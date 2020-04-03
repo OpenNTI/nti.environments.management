@@ -124,7 +124,7 @@ def _ping_url(site_info):
     return 'https://%s/dataserver2/logon.ping' % site_info.dns_name
 
 
-def _do_verify_site(site_info, timeout=2, tries=10, wait=2):
+def _do_verify_site(site_info, timeout=2, tries=30, wait=2):
     """
     Verify the created site is accessible.
     """
