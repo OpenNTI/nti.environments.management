@@ -48,6 +48,10 @@ session_cookie_secret = localhost
 facebook.app.id = 272442356159055
 facebook.app.secret = 964997cea8939ffae988668f6c634f0c
 
+# JWT
+jwt_secret = $JWT_SECRET
+jwt_issuer = nextthought
+
 gc_debug = False
 gc_gen0_threshold = 700
 gc_gen1_threshold = 10
