@@ -119,7 +119,7 @@ then
   podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
 fi
 
-if [ "$solrhost" == "localhost"]
+if [ "$solrhost" == "localhost" ]
 then
   podman container exists $pod-solr
   ret=$?
