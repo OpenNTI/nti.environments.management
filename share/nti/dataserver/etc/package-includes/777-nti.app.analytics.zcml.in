@@ -27,7 +27,6 @@
 		<adb:registerAnalyticsDB
 				defaultSQLite="True"
 				twophase="False"
-				echo="True"
 				autocommit="False" />
 		<ana:registerImmediateProcessingQueue />
 
