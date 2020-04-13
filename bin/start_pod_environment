@@ -8,7 +8,7 @@ podroot=/opt/pods/$pod
 logroot=/opt/pods/logs/$pod.nti
 runtype=$2
 
-if [ ! -e "$podroot/environment" ]
+if [ -e "$podroot/environment" ]
 then
   source $podroot/environment
 fi
