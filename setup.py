@@ -32,7 +32,8 @@ docs_require = []
 
 setup(
     name='nti.environments.management',
-    version='0.0',
+    version_format='{tag}.dev{commits}+{sha}',
+    setup_requires=['very-good-setuptools-git-version'],
     description='NTI Environments Management',
     long_description=README + '\n\n' + CHANGES,
     classifiers=[
