@@ -137,6 +137,7 @@ def _do_verify_site(site_info, timeout=2, tries=30, wait=2):
         try:
             pong = _do_ping_site(url, site_id, timeout=timeout)
             if pong:
+                site_info.ds_site_id = pong['Site']
                 verified = True
                 break
         except ConnectionError as e:
@@ -212,6 +213,7 @@ def join_setup_environment_task(task, group_result, site_info, verify_site=True)
         logger.info('Setup of site %s complete in %.2f seconds',
                     site_info.site_id, site_info.elapsed_time or -1)
 
+    assert site_info.ds_site_id
     return site_info
 
 
@@ -223,6 +225,7 @@ class SiteInfo(object):
     start_time = None
     end_time = None
     task_result_dict = None
+    ds_site_id = None
 
     def __init__(self, site_id, dns_name):
         self.site_id = site_id
