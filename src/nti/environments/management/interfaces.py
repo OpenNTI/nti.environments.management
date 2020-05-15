@@ -179,6 +179,7 @@ class IInitializedSiteInfo(interface.Interface):
 
     admin_invitation = interface.Attribute('The invitation that can be used to create an initial admin account')
 
+    ds_site_id = interface.Attribute('The dataserver site id/name that was created')
 
 class ISetupEnvironmentTask(IApplicationTask):
     """
