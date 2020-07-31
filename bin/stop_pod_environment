@@ -30,6 +30,13 @@ then
     podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown 1>&2
 fi
 
+podman container exists $pod-sockets
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+    podman exec $pod-sockets /home/ntiuser/buildout/bin/supervisorctl shutdown 1>&2
+fi
+
 for container in $CONTAINERS
 do
     podman container exists $container
@@ -56,5 +63,14 @@ until [ "$ret" -eq 1 ]
 do
     sleep 1
     podman container exists $pod-dataserver
+    ret=$?
+done
+
+podman container exists $pod-sockets
+ret=$?
+until [ "$ret" -eq 1 ]
+do
+    sleep 1
+    podman container exists $pod-sockets
     ret=$?
 done

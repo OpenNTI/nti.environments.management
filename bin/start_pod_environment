@@ -79,7 +79,7 @@ then
     chown -R 1000.1000 "$podroot/content"
     chcon -R system_u:object_r:container_file_t:s0 "$podroot/content"
   fi
-  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm --privileged docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   ret=$?
   if [ "$ret" -eq 0 ]
   then
@@ -134,16 +134,19 @@ then
   fi
 fi
 
-podman container exists $pod-haproxy
-ret=$?
-if [ "$ret" -eq 1 ]
+if [ "$haproxy" != "shared" ]
 then
-  if [ ! -e "$podroot/run" ]
+  podman container exists $pod-haproxy
+  ret=$?
+  if [ "$ret" -eq 1 ]
   then
-    mkdir -p "$podroot/run"
-    chcon -R system_u:object_r:container_file_t:s0 "$podroot/run"
-  fi
-  podman run --pod=$pod --volume $podroot/run:/run:rw --volume $logroot:/var/log:rw --name $pod-haproxy --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
+    if [ ! -e "$podroot/run" ]
+    then
+      mkdir -p "$podroot/run"
+      chcon -R system_u:object_r:container_file_t:s0 "$podroot/run"
+    fi
+    podman run --pod=$pod --volume $podroot/run:/run:rw --volume $logroot:/var/log:rw --name $pod-haproxy --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
+fi
 fi
 
 podman container exists $pod-nginx
@@ -162,6 +165,16 @@ then
     podman run --pod=$pod --volume $podroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   else
     podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+  fi
+fi
+
+if [ -e "$podroot/sockets" ]
+then
+  podman container exists $pod-sockets
+  ret=$?
+  if [ "$ret" -eq 1 ]
+  then
+    podman run --pod=$pod --volume $podroot/sockets/.boto:/home/ntiuser/.boto:ro --volume $podroot/sockets/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/sockets/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/sockets/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-sockets --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   fi
 fi
 
