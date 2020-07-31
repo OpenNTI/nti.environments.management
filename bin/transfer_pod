@@ -1,0 +1,15 @@
+#!/bin/sh
+
+pod=$1
+dest=$2
+
+shutdown_pod_environment $pod
+
+tar -C /opt/volumes/ -czvSpf - $pod.img | ssh $dest tar -C  /opt/volumes/ -xzSpf -
+
+if [ ! -e /opt/volumes/transferred ]
+then
+  mkdir -p /opt/volumes/transferred
+fi
+
+mv /opt/volumes/$pod.img /opt/volumes/transferred/

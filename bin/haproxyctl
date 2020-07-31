@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import socket
+
+def send_command(socket_file, command):
+    try:
+        unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        unix_socket.settimeout(0.1)
+        unix_socket.connect(socket_file)
+        unix_socket.send(bytes(command + '\n', 'utf-8'))
+        data = str(unix_socket.recv(65536), 'utf-8')
+    except (socket.timeout, OSError):
+        data = False
+    finally:
+        unix_socket.close()
+    return data
+
+def _parse_args():
+    arg_parser = argparse.ArgumentParser( description="HAProxy Control Program" )
+    arg_parser.add_argument('--socket', dest='socket', required=True,
+                            help="HAProxy admin socket")
+    arg_parser.add_argument('--command', dest='command', required=True,
+                            help="HAProxy CLI command")
+    return arg_parser.parse_args()
+
+def main():
+    args = _parse_args()
+    unix_socket = os.path.abspath(os.path.expanduser(args.socket))
+    result = send_command(unix_socket, args.command)
+    if result:
+        print(result)
+
+if __name__ == '__main__': # pragma: no cover
+    main()
+

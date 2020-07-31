@@ -1,0 +1,13 @@
+#!/bin/sh
+
+CERT=$1
+
+ISSUER_URI=$(openssl x509 -in $CERT -noout -text | awk '/CA Issuers - / { split($4,array,":"); print array[2]":"array[3];}')
+OCSP_URI=$(openssl x509 -in $CERT -noout -ocsp_uri)
+
+curl -s -L -o /tmp/issuer.der "$ISSUER_URI"
+openssl x509 -inform der -in /tmp/issuer.der -out /tmp/issuer.crt
+openssl ocsp -no_nonce -verify_other /tmp/issuer.crt -issuer /tmp/issuer.crt -cert "$CERT" -header "Host" "ocsp.int-x3.letsencrypt.org" -url "$OCSP_URI" -respout "$CERT".ocsp
+
+rm -f /tmp/issuer.der
+rm -f /tmp/issuer.crt
