@@ -3,6 +3,18 @@
 pod=$1
 dest=$2
 
+if [ -z "$pod" ]
+then
+  echo "$(date): ABORT! no pod id specified." 1>&2
+  exit 11
+fi
+
+if [ -z "$dest" ]
+then
+  echo "$(date): ABORT! no destination host specified." 1>&2
+  exit 11
+fi
+
 shutdown_pod_environment $pod
 
 tar -C /opt/volumes/ -czvSpf - $pod.img | ssh $dest tar -C  /opt/volumes/ -xzSpf -

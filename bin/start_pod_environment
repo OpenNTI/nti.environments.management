@@ -8,6 +8,12 @@ podroot=/opt/pods/$pod
 logroot=/opt/pods/logs/$pod.nti
 runtype=$2
 
+if [ -z "$pod" ]
+then
+  echo "$(date): ABORT! no pod id specified." 1>&2
+  exit 11
+fi
+
 if [ -e "$podroot/environment" ]
 then
   source $podroot/environment
