@@ -1,0 +1,45 @@
+#!/bin/bash
+
+IMAGE_DIR=/opt/volumes
+BACKUP_DIR=/opt/backups
+VOLGROUP=VolGroup
+IMAGE_VOLUME=opt_volumes
+
+OLD_CWD=$(pwd)
+
+# Trim the running volumes
+for image in $(ls $IMAGE_DIR/*.img)
+  do
+  image_id=$(basename -s .img $image)
+  if [ -e /opt/pods/$image_id ]; then
+    fstrim /opt/pods/$image_id
+  fi
+done
+
+SNAPTIME=$(date "+%Y%m%d%H%M%S")
+SNAP_DIR=/srv/snap-$SNAPTIME
+SNAPNAME=backup-$SNAPTIME
+lvcreate -L1g --snapshot --name $SNAPNAME /dev/$VOLGROUP/$IMAGE_VOLUME
+
+if [ ! -e $SNAP_DIR ]; then
+  mkdir -p $SNAP_DIR
+fi
+mount -o nouuid,ro /dev/$VOLGROUP/$SNAPNAME $SNAP_DIR
+
+cd $SNAP_DIR
+for image in $(ls *.img)
+  do
+  if [ "$image" != "pod-logs.img" ]
+  then
+    image_id=$(basename -s .img $image)
+    backup_image=$BACKUP_DIR/$image_id/$SNAPTIME/$(basename $image)
+    mkdir -p $(dirname $backup_image)
+    tar -czvSpf $backup_image.tgz $(basename $image)
+  fi
+done
+
+cd $OLD_CWD
+
+umount $SNAP_DIR
+rmdir $SNAP_DIR
+lvremove -y /dev/$VOLGROUP/$SNAPNAME
