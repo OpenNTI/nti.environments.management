@@ -175,7 +175,7 @@ level = INFO
 handlers = console
 
 [logger_dataserver]
-level = DEBUG
+level = INFO
 handlers =
 qualname = nti
 
@@ -209,12 +209,12 @@ handlers =
 qualname = zope
 
 [logger_zodb]
-level = DEBUG
+level = INFO
 handlers =
 qualname = ZODB
 
 [logger_relstorage]
-level = DEBUG
+level = INFO
 handlers =
 qualname = relstorage
 
