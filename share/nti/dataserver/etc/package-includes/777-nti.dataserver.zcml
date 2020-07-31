@@ -1,0 +1,17 @@
+<!-- -*- mode: nxml -*- -->
+<configure	xmlns="http://namespaces.zope.org/zope"
+			xmlns:i18n="http://namespaces.zope.org/i18n"
+			xmlns:zcml="http://namespaces.zope.org/zcml"
+			xmlns:oauth="http://nextthought.com/ntp/oauth">
+
+	<!-- Dataserver Content Signer -->
+	<include package="nti.common" file="meta.zcml" />
+	<oauth:registerContentSigner
+			secret="BnYPQmMcZCVVAhVxYjc4AU9GHhpCNgUYTXhkBBxRNjI="
+			salt="BWFLDxqBnZy9JGPdTZTGjJ2BBQB7WHfc"/>
+
+	<oauth:registerOAuthService
+		authorization_url="https://accounts.google.com/o/oauth2/v2/auth"
+		id="google"/>
+
+</configure>
