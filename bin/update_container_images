@@ -11,9 +11,7 @@ podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/hap
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/nginx
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/node-exporter
 podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk
