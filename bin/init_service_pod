@@ -1,20 +1,43 @@
 #!/bin/bash
 
 pod=$1
+imagesize=$2
+
+if [ -z $imagesize ]
+then
+  imagesize=1
+fi
 
 smtpserver=email-smtp.us-east-1.amazonaws.com
 
 source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
-userfile=/root/pods/$pod.json
+podroot=/opt/pods/$pod
+logroot=/opt/pods/logs/$pod.nti
 
-if [ ! -e /root/pods ]
+create_pod $pod 1>&2
+ret=$?
+if [ ! "$ret" -eq 0 ]
 then
-    mkdir -p /root/pods
+  exit $ret
 fi
 
-if [ ! -e $userfile ]
+if [ ! -e "/opt/volumes/$pod.img" ]
+then
+    echo "Creating and initializing data volume for pod $pod"
+    dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=$imagesize
+    mkfs.xfs /opt/volumes/$pod.img
+fi
+
+mount_pod $pod $podroot 1>&2
+ret=$?
+if [ ! "$ret" -eq 0 ]
+then
+  exit $ret
+fi
+
+if [ ! -e "$podroot/$pod.json" ]
 then
     #Check and see if the user exists
     t0=$(aws iam --profile legacy list-users --output json | jq ".Users[] | select(.UserName==\"$pod\")")
@@ -23,32 +46,17 @@ then
     then
         aws iam --profile legacy create-user --user-name $pod
     fi
-    aws iam --profile legacy create-access-key --user-name $pod > $userfile
+    aws iam --profile legacy create-access-key --user-name $pod > $podroot/$pod.json
     aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTI-SQS-ReadWriteAccess
     aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTISesSendingAccess
+
+    chcon -R  system_u:object_r:container_file_t:s0 $podroot
 fi
 
-accesskey=$(cat $userfile)
+accesskey=$(cat $podroot/$pod.json)
 accesskeyid=$(echo $accesskey | jq .AccessKey.AccessKeyId | sed -e 's|"||g')
 secretaccesskey=$(echo $accesskey | jq .AccessKey.SecretAccessKey | sed -e 's|"||g')
 smtppass=$(computeSEScreds --region us-east-1 --secret $secretaccesskey)
-podroot=/opt/pods/$pod
-logroot=/opt/pods/logs/$pod.nti
-mkdir -p $podroot
-
-if [ ! -e "/opt/volumes/$pod.img" ]
-then
-    echo "Creating and initializing data volume for pod $pod"
-    dd if=/dev/zero of=/opt/volumes/$pod.img count=0 bs=1G seek=1
-    mkfs.xfs /opt/volumes/$pod.img
-    mount -o loop,rw /opt/volumes/$pod.img $podroot
-    cp -a $userfile $podroot
-    chcon -R  system_u:object_r:container_file_t:s0 $podroot
-    echo "Creating $pod pod"
-    podman pod create --name $pod --hostname $pod.nti
-    podman pod start $pod
-    add_CNAME $pod
-fi
 
 if [ ! -e "$logroot" ]
 then
@@ -56,4 +64,10 @@ then
     chmod 1777 "$logroot"
     chcon -R  system_u:object_r:container_file_t:s0 "$logroot"
     ln -s "$logroot" "$podroot/logs"
+fi
+
+if [ -e "$podroot/start_services" ]
+then
+    echo "Starting services" 1>&2
+    $podroot/start_services $pod 1>&2
 fi
