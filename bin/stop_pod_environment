@@ -59,12 +59,26 @@ done
 
 podman container exists $pod-dataserver
 ret=$?
+if [ "$ret" -eq 0 ]
+then
+    podman rm $pod-dataserver 1>&2
+fi
+
+podman container exists $pod-dataserver
+ret=$?
 until [ "$ret" -eq 1 ]
 do
     sleep 1
     podman container exists $pod-dataserver
     ret=$?
 done
+
+podman container exists $pod-sockets
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+    podman rm $pod-sockets 1>&2
+fi
 
 podman container exists $pod-sockets
 ret=$?
