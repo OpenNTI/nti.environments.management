@@ -33,14 +33,42 @@ from .tasks import mock_task
 
 logger = __import__('logging').getLogger(__name__)
 
-_BACKEND_DEFINITION = r"""backend $SITE_ID_backend
-    mode http
-    option http-server-close
-    timeout server 15m
+_BACKEND_DEFINITION = r"""backend $SITE_ID_backend_static
+        mode http
+        balance roundrobin
+        option prefer-last-server
 
-    option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
+        timeout server 15m
+        timeout connect 4s
 
-    server node1 $SITE_ID.nti:8086 weight 1 on-error mark-down check inter 2000 rise 1 fall 3 observe layer7 send-proxy
+        option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
+
+        server web1 $SITE_ID.nti:8085 weight 1 on-error fastinter check inter 2000 rise 1 fall 2 send-proxy
+
+backend $SITE_ID_backend_data
+        mode http
+        balance leastconn
+        hash-type consistent sdbm avalanche
+        option prefer-last-server
+        option http-server-close
+
+        timeout server 15m
+        timeout connect 4s
+
+        option httpchk GET /_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
+
+        server data1 $SITE_ID.nti:8081 weight 1 on-error fastinter check inter 2000 rise 1 fall 20 send-proxy
+
+backend $SITE_ID_backend_node
+        mode http
+        option prefer-last-server
+        timeout server 15m
+        timeout connect 4s
+        option http-server-close
+
+        option httpchk GET /mobile/api/_ops/ping HTTP/1.1\r\nHost:\ $SITE_ID
+
+        server node1 $SITE_ID.nti:8083 weight 1 on-error fastinter check inter 2000 rise 1 fall 2 send-proxy
 """
 
 _REPLACEMENT_PATTERN = "$SITE_ID"
