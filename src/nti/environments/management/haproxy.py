@@ -131,7 +131,7 @@ def add_backend_mapping(map_location, dns_name, site_id):
     logger.info('Updating haproxy backend map map=(%s) site=(%s) dns_name(%s)',
                 map_location, site_id, dns_name)
     with open(map_location, 'a') as f:
-        f.write(f'{dns_name} {site_id}_backend\n')
+        f.write(f'{dns_name}\t{site_id}_backend\n')
 
 class HAProxyCommandException(Exception):
     """
