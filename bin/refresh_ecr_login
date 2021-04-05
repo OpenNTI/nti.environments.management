@@ -1,4 +1,10 @@
 #!/bin/bash
 
-cmd=$(aws --profile dev ecr get-login --no-include-email | sed -e "s|docker|podman|")
+PROFILE=$1
+if [ ! -z "$PROFILE" ]
+then
+  PROFILE="--profile $PROFILE"
+fi
+
+cmd=$(aws $PROFILE ecr get-login --no-include-email | sed -e "s|docker|podman|")
 exec $cmd

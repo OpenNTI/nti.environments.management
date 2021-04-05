@@ -46,6 +46,8 @@ then
   exit 0
 fi
 
+ACCOUNT=$(aws sts get-caller-identity | jq '.Account' | sed -e "s|\"||g")
+
 podman container exists $pod-dataserver
 ret=$?
 if [ "$ret" -eq 1 ]
@@ -91,7 +93,7 @@ then
     chown -R 1000.1000 "$podroot/content"
     chcon -R system_u:object_r:container_file_t:s0 "$podroot/content"
   fi
-  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm --privileged docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm --privileged docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   ret=$?
   if [ "$ret" -eq 0 ]
   then
@@ -112,24 +114,27 @@ then
   fi
 fi
 
-podman container exists $pod-redis
-ret=$?
-if [ "$ret" -eq 1 ]
+if [ "$redis" != "shared" ]
 then
-  if [ ! -e "$podroot/redis" ]
+  podman container exists $pod-redis
+  ret=$?
+  if [ "$ret" -eq 1 ]
   then
-    mkdir -p "$podroot/redis"
-    chown -R 998.996 "$podroot/redis"
-    chcon -R system_u:object_r:container_file_t:s0 "$podroot/redis"
+    if [ ! -e "$podroot/redis" ]
+    then
+      mkdir -p "$podroot/redis"
+      chown -R 998.996 "$podroot/redis"
+      chcon -R system_u:object_r:container_file_t:s0 "$podroot/redis"
+    fi
+    podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $logroot:/var/log/redis:rw --name $pod-redis --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
   fi
-  podman run --pod=$pod --volume $podroot/redis/:/var/lib/redis:rw --volume $logroot:/var/log/redis:rw --name $pod-redis --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis 1>&2
 fi
 
 podman container exists $pod-statsd-exporter
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
+  podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
 fi
 
 if [ "$solrhost" == "localhost" ]
@@ -138,7 +143,7 @@ then
   ret=$?
   if [ "$ret" -eq 1 ]
   then
-    podman run --pod=$pod --volume $podroot/solr-data:/opt/solr/conf/nti/data:rw --name $pod-solr --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/solr 1>&2
+    podman run --pod=$pod --volume $podroot/solr-data:/opt/solr/conf/nti/data:rw --name $pod-solr --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/solr 1>&2
   fi
 fi
 
@@ -153,15 +158,15 @@ then
       mkdir -p "$podroot/run"
       chcon -R system_u:object_r:container_file_t:s0 "$podroot/run"
     fi
-    podman run --pod=$pod --volume $podroot/run:/run:rw --volume $logroot:/var/log:rw --name $pod-haproxy --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
-fi
+    podman run --pod=$pod --volume $podroot/run:/run:rw --volume $logroot:/var/log:rw --name $pod-haproxy --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy 1>&2
+  fi
 fi
 
 podman container exists $pod-nginx
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $logroot:/var/log:rw --name $pod-nginx --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
+  podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $logroot:/var/log:rw --name $pod-nginx --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
 fi
 
 podman container exists $pod-web-service
@@ -170,9 +175,9 @@ if [ "$ret" -eq 1 ]
 then
   if [ -e "$podroot/overrides/webservice" ]
   then
-    podman run --pod=$pod --volume $podroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+    podman run --pod=$pod --volume $podroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   else
-    podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+    podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
   fi
 fi
 
@@ -182,7 +187,17 @@ then
   ret=$?
   if [ "$ret" -eq 1 ]
   then
-    podman run --pod=$pod --volume $podroot/sockets/.boto:/home/ntiuser/.boto:ro --volume $podroot/sockets/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/sockets/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/sockets/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-sockets --detach --rm docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+    podman run --pod=$pod --volume $podroot/sockets/.boto:/home/ntiuser/.boto:ro --volume $podroot/sockets/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/sockets/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/sockets/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-sockets --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+  fi
+fi
+
+if [ -e "$podroot/dataserver2" ]
+then
+  podman container exists $pod-dataserver2
+  ret=$?
+  if [ "$ret" -eq 1 ]
+  then
+    podman run --pod=$pod --volume $podroot/dataserver2/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver2/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver2/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver2/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver2/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver2 --detach --rm --privileged docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   fi
 fi
 

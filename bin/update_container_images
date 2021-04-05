@@ -4,14 +4,13 @@ source /etc/nti/container_versions
 
 refresh_ecr_login
 
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/solr
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/rsyslog
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/haproxy-exporter
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/nginx
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/redis
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/prometheus/node-exporter
-podman pull docker://556717414764.dkr.ecr.us-east-1.amazonaws.com/splunk
+ACCOUNT=$(aws sts get-caller-identity | jq '.Account' | sed -e "s|\"||g")
+
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/haproxy
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/nginx
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/redis
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservicenext
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver
+podman pull docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataservernext
