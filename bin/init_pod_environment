@@ -4,6 +4,7 @@ source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
+podroot=/opt/pods/$pod
 siteID=$(echo $pod | tr [:upper:] [:lower:])
 sitename=$(echo $2 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g' | awk '{gsub(/&/, "\\\\&"); print};') #Escaped so sitename is sed/xml safe
 siteHostname=$3
@@ -49,20 +50,11 @@ fi
 
 echo $(/usr/bin/env) 1>&2
 
-smtpserver=email-smtp.us-east-1.amazonaws.com
-
 JQ=$(which jq)
 if [ ! -e "$JQ" ]
 then
   echo "$(date): ABORT! Could not find \'jq\' on the path." 1>&2
   exit 10
-fi
-
-userfile=/root/pods/$pod.json
-
-if [ ! -e /root/pods ]
-then
-    mkdir -p /root/pods
 fi
 
 echo "$(date): Initializing $pod environment" 1>&2
@@ -72,25 +64,6 @@ if [ ! "$ret" -eq 0 ]
 then
   exit $ret
 fi
-
-if [ ! -e $userfile ]
-then
-    #Check and see if the user exists
-    t0=$(aws iam --profile legacy list-users --output json | jq ".Users[] | select(.UserName==\"$pod\")")
-    if [ -z "$t0" ]
-    then
-        aws iam --profile legacy create-user --user-name $pod > /dev/null
-    fi
-    aws iam --profile legacy create-access-key --user-name $pod > $userfile
-    aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTI-SQS-ReadWriteAccess
-    aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTISesSendingAccess
-fi
-
-accesskey=$(cat $userfile)
-accesskeyid=$(echo $accesskey | jq .AccessKey.AccessKeyId | sed -e 's|"||g')
-secretaccesskey=$(echo $accesskey | jq .AccessKey.SecretAccessKey | sed -e 's|"||g')
-smtppass=$(computeSEScreds --region us-east-1 --secret $secretaccesskey)
-podroot=/opt/pods/$pod
 
 if [ ! -e "/opt/volumes/$pod.img" ]
 then
@@ -104,6 +77,26 @@ then
     then
       exit $ret
     fi
+
+    userfile=$podroot/$pod.json
+    if [ ! -e $userfile ]
+    then
+      #Check and see if the user exists
+      t0=$(aws iam --profile legacy list-users --output json | jq ".Users[] | select(.UserName==\"$pod\")")
+      if [ -z "$t0" ]
+      then
+        aws iam --profile legacy create-user --user-name $pod > /dev/null
+      fi
+      aws iam --profile legacy create-access-key --user-name $pod > $userfile
+      aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTI-SQS-ReadWriteAccess
+      aws iam --profile legacy attach-user-policy --user-name $pod --policy-arn arn:aws:iam::569451255149:policy/NTISesSendingAccess
+    fi
+
+    accesskey=$(cat $userfile)
+    accesskeyid=$(echo $accesskey | jq .AccessKey.AccessKeyId | sed -e 's|"||g')
+    secretaccesskey=$(echo $accesskey | jq .AccessKey.SecretAccessKey | sed -e 's|"||g')
+    smtppass=$(computeSEScreds --region us-east-1 --secret $secretaccesskey)
+    smtpserver=email-smtp.us-east-1.amazonaws.com
 
     rsync --archive --quiet /usr/local/share/nti/dataserver $podroot 1>&2
     cat /usr/local/share/nti/dataserver/.boto.in | sed -e "s|\$ACCESS_KEY_ID|$accesskeyid|g" -e "s|\$SECRET_ACCESS_KEY|$secretaccesskey|g" > $podroot/dataserver/.boto
