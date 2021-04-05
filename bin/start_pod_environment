@@ -96,16 +96,12 @@ then
   if [ "$ret" -eq 0 ]
   then
     echo "$(date): $pod-dataserver container running" 1>&2
-    systemctl enable "nti-dataserver-logrotate@$pod.service" 1>&2
     systemctl enable "nti-dataserver-logrotate@$pod.timer" 1>&2
     systemctl start "nti-dataserver-logrotate@$pod.timer" 1>&2
-    systemctl enable "nti-notable-digest@$pod.service" 1>&2
     systemctl enable "nti-notable-digest@$pod.timer" 1>&2
     systemctl start "nti-notable-digest@$pod.timer" 1>&2
-    systemctl enable "nti-process-bounce-queue@$pod.service" 1>&2
     systemctl enable "nti-process-bounce-queue@$pod.timer" 1>&2
     systemctl start "nti-process-bounce-queue@$pod.timer" 1>&2
-    systemctl enable "nti-refresh-auth-token@$pod.service" 1>&2
     systemctl enable "nti-refresh-auth-token@$pod.timer" 1>&2
     systemctl start "nti-refresh-auth-token@$pod.timer" 1>&2
   else
