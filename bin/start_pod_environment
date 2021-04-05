@@ -40,6 +40,12 @@ then
   exit $ret
 fi
 
+if [ "$inactive" == "true" ]
+then
+  echo "Not starting inactive environment."
+  exit 0
+fi
+
 podman container exists $pod-dataserver
 ret=$?
 if [ "$ret" -eq 1 ]
