@@ -1,0 +1,53 @@
+#!/bin/bash
+
+source /etc/nti/container_versions
+source /usr/local/lib/nti/nti-container-functions
+
+pod=$1
+podroot=/opt/pods/$pod
+logroot=/opt/pods/logs/$pod.nti
+runtype=$2
+
+if [ -e "$podroot/environment" ]
+then
+  source $podroot/environment
+fi
+
+if [ -z "$runtype" ]
+then
+  runtype="normal"
+fi
+
+echo "$(date): Stoping $pod-web-service" 1>&2
+
+podman container exists $pod-web-service
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+    podman stop $pod-web-service 1>&2
+fi
+
+podman container exists $pod-web-service
+ret=$?
+if [ "$ret" -eq 0 ]
+then
+    podman rm $pod-web-service 1>&2
+fi
+
+ACCOUNT=$(aws sts get-caller-identity | jq '.Account' | sed -e "s|\"||g")
+
+echo "$(date): Starting $pod-web-service" 1>&2
+
+podman container exists $pod-web-service
+ret=$?
+if [ "$ret" -eq 1 ]
+then
+  if [ -e "$podroot/overrides/webservice" ]
+  then
+    podman run --pod=$pod --volume $podroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+  else
+    podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+  fi
+fi
+
+echo "$(date): $pod-web-service is running" 1>&2

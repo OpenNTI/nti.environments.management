@@ -1,0 +1,7 @@
+#!/bin/sh
+
+refresh_ecr_login
+
+ACCOUNT=$(aws sts get-caller-identity | jq '.Account' | sed -e "s|\"||g")
+
+podman pull $ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:snapshot
