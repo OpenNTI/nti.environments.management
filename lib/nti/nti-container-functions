@@ -103,3 +103,13 @@ function start_dataserver_aux_processes (){
     return 16
   fi
 }
+
+function generate_awscli_config (){
+    configroot=$1
+    region=$2
+    cat > $configroot/config << EOF
+[default]
+region = $region
+output = json
+EOF
+}

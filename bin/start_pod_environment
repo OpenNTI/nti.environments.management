@@ -24,6 +24,11 @@ then
   runtype="normal"
 fi
 
+if [ -z "$AWS_REGION" ]
+then
+  AWS_REGION=us-east-1
+fi
+
 echo "$(date): Starting $pod environment" 1>&2
 
 create_pod $pod 1>&2
@@ -58,6 +63,12 @@ then
     mkdir -p "$podroot/dataserver/.aws"
     chown -R 1000.1000 "$podroot/dataserver/.aws"
     chcon -R system_u:object_r:container_file_t:s0 "$podroot/dataserver/.aws"
+  fi
+  if [ ! -e "$podroot/dataserver/.aws/config" ]
+  then
+    generate_awscli_config "$podroot/dataserver/.aws/" $AWS_REGION
+    chown 1000.1000 "$podroot/dataserver/.aws/config"
+    chcon system_u:object_r:container_file_t:s0 "$podroot/dataserver/.aws/config"
   fi
   if [ ! -e "$podroot/dataserver/data/relstorages_users_storage" ]
   then
