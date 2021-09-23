@@ -24,6 +24,11 @@ then
   runtype="normal"
 fi
 
+if [ -z "$ascienv" ]
+then
+  ascienv="asci"
+fi
+
 if [ -z "$AWS_REGION" ]
 then
   AWS_REGION=us-east-1
@@ -129,6 +134,7 @@ then
     systemctl start "nti-process-bounce-queue@$pod.timer" 1>&2
     systemctl enable "nti-refresh-auth-token@$pod.timer" 1>&2
     systemctl start "nti-refresh-auth-token@$pod.timer" 1>&2
+    add_SRV_record $pod _dataserver_gp._tcp.$pod.nti 8081 1>&2
   else
     echo "$(date): ABORT! Failed to start $pod-dataserver" 1>&2
     echo "$(date): Cleaning up $pod-dataserver."
@@ -158,6 +164,7 @@ ret=$?
 if [ "$ret" -eq 1 ]
 then
   podman run --pod=$pod --name $pod-statsd-exporter --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/prometheus/statsd-exporter:latest 1>&2
+  add_SRV_record $pod _statsd_exporter._tcp.$ascienv.nti 9102 1>&2
 fi
 
 if [ "$solrhost" == "localhost" ]
@@ -190,6 +197,7 @@ ret=$?
 if [ "$ret" -eq 1 ]
 then
   podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $logroot:/var/log:rw --name $pod-nginx --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
+  add_SRV_record $pod _static_content._tcp.$pod.nti 8085 1>&2
 fi
 
 podman container exists $pod-web-service
@@ -211,6 +219,12 @@ then
   if [ "$ret" -eq 1 ]
   then
     podman run --pod=$pod --volume $podroot/sockets/.boto:/home/ntiuser/.boto:ro --volume $podroot/sockets/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/sockets/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/sockets/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-sockets --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+    ret=$?
+    if [ "$ret" -eq 0 ]
+    then
+      add_SRV_record $pod _dataserver_sockets._tcp.$pod.nti 8088 1>&2
+    fi
+
   fi
 fi
 

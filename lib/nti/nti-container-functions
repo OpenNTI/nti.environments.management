@@ -1,14 +1,15 @@
 function add_CNAME () {
     pod=$1
-    infraID=$(podman pod inspect $pod | jq ".State.infraContainerID[0:12]" | sed -e "s|\"||g")
+    infraID=$(podman pod inspect $pod | jq -r ".State.infraContainerID[0:12]")
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
+    infraIPAddress=$(nslookup $infraIDHostName | awk '$0 ~ /Name:/{getline;print $2}')
     hostSystem=$(hostname)
-    echo "$(date): Adding CNAME record for $podHostName"
+    echo "$(date): Adding DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
 prereq yxdomain $infraIDHostName
-update add $podHostName 150 CNAME $infraIDHostName
-update add $podHostName.host.nti 150 CNAME $hostSystem
+update add $podHostName 150 A $infraIPAddress
+update add $pod.host.nti 150 CNAME $hostSystem
 send
 quit
 EOF
@@ -19,13 +20,42 @@ function remove_CNAME (){
     infraID=$(podman pod inspect $pod | jq ".State.infraContainerID[0:12]" | sed -e "s|\"||g")
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
-    echo "$(date): Removing CNAME record for $podHostName"
+    echo "$(date): Removing DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
 prereq yxdomain $podHostName
 update delete $podHostName
 send
-prereq yxdomain $podHostName.host.nti
+prereq yxdomain $pod.host.nti
+update delete $pod.host.nti
 update delete $podHostName.host.nti
+send
+quit
+EOF
+}
+
+function add_SRV_record () {
+    pod=$1
+    host=$2
+    port=$3
+    podHostName=$pod.nti
+    echo "$(date): Adding SRV record for $host"
+    nsupdate -k /etc/dhcp/ddns_keys << EOF
+prereq yxdomain $podHostName
+update add $host 60 SRV 10 100 $port $podHostName
+send
+quit
+EOF
+}
+
+function remove_SRV_record (){
+    pod=$1
+    host=$2
+    port=$3
+    podHostName=$pod.nti
+    echo "$(date): Removing SRV record for $host"
+    nsupdate -k /etc/dhcp/ddns_keys << EOF
+prereq yxdomain $host 60 SRV 10 100 $port $podHostName
+update delete $host 60 SRV 10 100 $port $podHostName
 send
 quit
 EOF

@@ -1,6 +1,13 @@
 #!/bin/bash
 
+source /usr/local/lib/nti/nti-container-functions
+
 pod=$1
+
+if [ -z "$ascienv" ]
+then
+  ascienv="asci"
+fi
 
 CONTAINERS="$pod-web-service
 $pod-solr $pod-haproxy
@@ -27,6 +34,7 @@ then
     systemctl disable "nti-refresh-auth-token@$pod.service" 1>&2
     systemctl disable "nti-refresh-auth-token@$pod.timer" 1>&2
     systemctl stop "nti-refresh-auth-token@$pod.timer" 1>&2
+    remove_SRV_record $pod _dataserver_gp._tcp.$pod.nti 8081 1>&2
     podman exec $pod-dataserver /home/ntiuser/buildout/bin/supervisorctl shutdown 1>&2
 fi
 
@@ -34,6 +42,7 @@ podman container exists $pod-sockets
 ret=$?
 if [ "$ret" -eq 0 ]
 then
+    remove_SRV_record $pod _dataserver_sockets._tcp.$pod.nti 8088 1>&2
     podman exec $pod-sockets /home/ntiuser/buildout/bin/supervisorctl shutdown 1>&2
 fi
 
@@ -43,6 +52,14 @@ do
     ret=$?
     if [ "$ret" -eq 0 ]
     then
+        if [ $container == "$pod-statsd-exporter" ]
+        then
+            remove_SRV_record $pod _statsd_exporter._tcp.$ascienv.nti 9102 1>&2
+        fi
+        if [ $container == "$pod-nginx" ]
+        then
+            remove_SRV_record $pod _static_content._tcp.$pod.nti 8085 1>&2
+        fi
         podman stop $container 1>&2
     fi
 done
@@ -59,26 +76,12 @@ done
 
 podman container exists $pod-dataserver
 ret=$?
-if [ "$ret" -eq 0 ]
-then
-    podman rm $pod-dataserver 1>&2
-fi
-
-podman container exists $pod-dataserver
-ret=$?
 until [ "$ret" -eq 1 ]
 do
     sleep 1
     podman container exists $pod-dataserver
     ret=$?
 done
-
-podman container exists $pod-sockets
-ret=$?
-if [ "$ret" -eq 0 ]
-then
-    podman rm $pod-sockets 1>&2
-fi
 
 podman container exists $pod-sockets
 ret=$?
