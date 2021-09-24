@@ -56,6 +56,34 @@ then
   exit 0
 fi
 
+if [[ -n "$assetbase" && -e "$assetbase/$pod" ]]
+then
+  assetroot="$assetbase/$pod"
+else
+  assetroot="$podroot/assets"
+fi
+
+if [[ -n "$contentbase" && -e "$contentbase/$pod" ]]
+then
+  contentroot="$contentbase/$pod"
+else
+  contentroot="$podroot/content"
+fi
+
+if [[ -n "$pluginbase" && -e "$pluginbase/$pod" ]]
+then
+  pluginroot="$pluginbase/$pod"
+else
+  pluginroot="$podroot/dataserver/plugins"
+fi
+
+if [[ -n "$varbase" && -e "$varbase/$pod" ]]
+then
+  varroot="$varbase/$pod"
+else
+  varroot="$podroot/dataserver"
+fi
+
 ACCOUNT=$(aws sts get-caller-identity | jq '.Account' | sed -e "s|\"||g")
 
 podman container exists $pod-dataserver
@@ -81,17 +109,17 @@ then
     chown -R 1000.1000 "$podroot/dataserver/data"
     chcon -R system_u:object_r:container_file_t:s0 "$podroot/dataserver/data"
   fi
-  if [ ! -e "$podroot/dataserver/plugins" ]
+  if [ ! -e "$pluginroot" ]
   then
-    mkdir -p "$podroot/dataserver/plugins"
-    chown -R 1000.1000 "$podroot/dataserver/plugins"
-    chcon -R system_u:object_r:container_file_t:s0 "$podroot/dataserver/plugins"
+    mkdir -p "$pluginroot"
+    chown -R 1000.1000 "$pluginroot"
+    chcon -R system_u:object_r:container_file_t:s0 "$pluginroot"
   fi
-  if [ ! -e "$podroot/dataserver/maildir" ]
+  if [ ! -e "$varroot/maildir" ]
   then
-    mkdir -p "$podroot/dataserver/maildir/"{cur,new,tmp}
-    chown -R 1000.1000 "$podroot/dataserver/maildir"
-    chcon -R system_u:object_r:container_file_t:s0 "$podroot/dataserver/maildir"
+    mkdir -p "$varroot/maildir/"{cur,new,tmp}
+    chown -R 1000.1000 "$varroot/maildir"
+    chcon -R system_u:object_r:container_file_t:s0 "$varroot/maildir"
   fi
   if [ ! -e "$podroot/dataserver/run" ]
   then
@@ -109,19 +137,19 @@ then
   then
     ln -s "$logroot" "$podroot/logs"
   fi
-  if [ ! -e "$podroot/assets/default-assets/site-assets" ]
+  if [ ! -e "$assetroot/default-assets/site-assets" ]
   then
-    mkdir -p "$podroot/assets/default-assets/site-assets"
-    chown -R 1000.1000 "$podroot/assets"
-    chcon -R system_u:object_r:container_file_t:s0 "$podroot/assets"
+    mkdir -p "$assetroot/default-assets/site-assets"
+    chown -R 1000.1000 "$assetroot"
+    chcon -R system_u:object_r:container_file_t:s0 "$assetroot"
   fi
-  if [ ! -e "$podroot/content/sites" ]
+  if [ ! -e "$contentroot/sites" ]
   then
-    mkdir -p "$podroot/content/sites"
-    chown -R 1000.1000 "$podroot/content"
-    chcon -R system_u:object_r:container_file_t:s0 "$podroot/content"
+    mkdir -p "$contentroot/sites"
+    chown -R 1000.1000 "$contentroot"
+    chcon -R system_u:object_r:container_file_t:s0 "$contentroot"
   fi
-  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/.aws:/home/ntiuser/.aws:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $podroot/dataserver/plugins:/home/ntiuser/buildout/plugins:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver --detach --rm --privileged docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+  podman run --pod=$pod --volume $podroot/dataserver/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/.aws:/home/ntiuser/.aws:ro --volume $podroot/dataserver/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver/data:/home/ntiuser/buildout/data:rw --volume $pluginroot:/home/ntiuser/buildout/plugins:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $varroot/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver/run:/home/ntiuser/buildout/var/run:rw --volume $assetroot:/srv/assets:rw --volume $contentroot:/srv/content:rw --name $pod-dataserver --detach --rm --privileged docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   ret=$?
   if [ "$ret" -eq 0 ]
   then
@@ -196,7 +224,7 @@ podman container exists $pod-nginx
 ret=$?
 if [ "$ret" -eq 1 ]
 then
-  podman run --pod=$pod --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --volume $logroot:/var/log:rw --name $pod-nginx --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
+  podman run --pod=$pod --volume $assetroot:/srv/assets:rw --volume $contentroot:/srv/content:rw --volume $logroot:/var/log:rw --name $pod-nginx --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/nginx 1>&2
   add_SRV_record $pod _static_content._tcp.$pod.nti 8085 1>&2
 fi
 
@@ -218,7 +246,7 @@ then
   ret=$?
   if [ "$ret" -eq 1 ]
   then
-    podman run --pod=$pod --volume $podroot/sockets/.boto:/home/ntiuser/.boto:ro --volume $podroot/sockets/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/sockets/data:/home/ntiuser/buildout/data:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/sockets/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-sockets --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+    podman run --pod=$pod --volume $podroot/sockets/.boto:/home/ntiuser/.boto:ro --volume $podroot/sockets/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/sockets/data:/home/ntiuser/buildout/data:rw --volume $pluginroot:/home/ntiuser/buildout/plugins:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/sockets/run:/home/ntiuser/buildout/var/run:rw --volume $assetroot:/srv/assets:rw --volume $contentroot:/srv/content:rw --name $pod-sockets --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
     ret=$?
     if [ "$ret" -eq 0 ]
     then
@@ -234,7 +262,7 @@ then
   ret=$?
   if [ "$ret" -eq 1 ]
   then
-    podman run --pod=$pod --volume $podroot/dataserver2/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/.aws:/home/ntiuser/.aws:ro --volume $podroot/dataserver2/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver2/data:/home/ntiuser/buildout/data:rw --volume $podroot/dataserver/plugins:/home/ntiuser/buildout/plugins:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $podroot/dataserver2/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver2/run:/home/ntiuser/buildout/var/run:rw --volume $podroot/assets:/srv/assets:rw --volume $podroot/content:/srv/content:rw --name $pod-dataserver2 --detach --rm --privileged docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
+    podman run --pod=$pod --volume $podroot/dataserver2/.boto:/home/ntiuser/.boto:ro --volume $podroot/dataserver/.aws:/home/ntiuser/.aws:ro --volume $podroot/dataserver2/etc:/home/ntiuser/buildout/etc:rw --volume $podroot/dataserver2/data:/home/ntiuser/buildout/data:rw --volume $pluginroot:/home/ntiuser/buildout/plugins:rw --volume $logroot:/home/ntiuser/buildout/var/log:rw --volume $varroot/maildir:/home/ntiuser/buildout/var/maildir:rw --volume $podroot/dataserver2/run:/home/ntiuser/buildout/var/run:rw --volume $assetroot:/srv/assets:rw --volume $contentroot:/srv/content:rw --name $pod-dataserver2 --detach --rm --privileged docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/dataserver:$dataserver 1>&2
   fi
 fi
 
