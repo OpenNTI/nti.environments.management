@@ -1,5 +1,6 @@
 #!/bin/bash
 
+source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
 pod=$1
