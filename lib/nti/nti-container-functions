@@ -7,6 +7,7 @@ function add_CNAME () {
     hostSystem=$(hostname)
     echo "$(date): Adding DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
+server $dnsserver
 prereq yxdomain $infraIDHostName
 update add $podHostName 150 A $infraIPAddress
 update add $pod.host.nti 150 CNAME $hostSystem
@@ -22,6 +23,7 @@ function remove_CNAME (){
     infraIDHostName=$infraID.nti
     echo "$(date): Removing DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
+server $dnsserver
 prereq yxdomain $podHostName
 update delete $podHostName
 send
@@ -40,6 +42,7 @@ function add_SRV_record () {
     podHostName=$pod.nti
     echo "$(date): Adding SRV record for $host"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
+server $dnsserver
 prereq yxdomain $podHostName
 update add $host 60 SRV 10 100 $port $podHostName
 send
@@ -54,6 +57,7 @@ function remove_SRV_record (){
     podHostName=$pod.nti
     echo "$(date): Removing SRV record for $host"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
+server $dnsserver
 prereq yxdomain $host 60 SRV 10 100 $port $podHostName
 update delete $host 60 SRV 10 100 $port $podHostName
 send
