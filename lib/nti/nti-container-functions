@@ -17,7 +17,7 @@ EOF
 
 function remove_CNAME (){
     pod=$1
-    infraID=$(podman pod inspect $pod | jq ".State.infraContainerID[0:12]" | sed -e "s|\"||g")
+    infraID=$(podman pod inspect $pod | jq -r ".State.infraContainerID[0:12]")
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
     echo "$(date): Removing DNS records for $podHostName"
