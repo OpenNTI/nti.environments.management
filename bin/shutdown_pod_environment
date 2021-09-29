@@ -3,6 +3,7 @@
 pod=$1
 podroot=/opt/pods/$pod
 
+source /etc/nti/container_versions
 source /usr/local/lib/nti/nti-container-functions
 
 podman pod exists $pod
