@@ -1,6 +1,14 @@
+
+PODMAN_MAJOR=$(podman --version | awk '{ split($3,a,"."); print a[1]; }')
+
 function add_CNAME () {
     pod=$1
-    infraID=$(podman pod inspect $pod | jq -r ".State.infraContainerID[0:12]")
+    if [ $PODMAN_MAJOR -ge 3  ]
+    then
+      infraID=$(podman pod inspect $pod | jq -r ".InfraContainerID[0:12]")
+    else
+      infraID=$(podman pod inspect $pod | jq -r ".State.infraContainerID[0:12]")
+    fi
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
     infraIPAddress=$(nslookup $infraIDHostName | awk '$0 ~ /Name:/{getline;print $2}')
@@ -18,7 +26,12 @@ EOF
 
 function remove_CNAME (){
     pod=$1
-    infraID=$(podman pod inspect $pod | jq -r ".State.infraContainerID[0:12]")
+    if [ $PODMAN_MAJOR -ge 3  ]
+    then
+      infraID=$(podman pod inspect $pod | jq -r ".InfraContainerID[0:12]")
+    else
+      infraID=$(podman pod inspect $pod | jq -r ".State.infraContainerID[0:12]")
+    fi
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
     echo "$(date): Removing DNS records for $podHostName"
@@ -103,7 +116,12 @@ function create_pod (){
   if [ "$ret" -eq 1 ]
   then
     echo "$(date): Creating $pod pod"
-    podman pod create --name $pod --hostname $pod.nti
+    if [ $PODMAN_MAJOR -ge 3  ]
+    then
+      podman pod create --network nti-legacy --name $pod --hostname $pod.nti
+    else
+      podman pod create --name $pod --hostname $pod.nti
+    fi
     ret=$?
     if [ $ret -eq 0 ]
     then
