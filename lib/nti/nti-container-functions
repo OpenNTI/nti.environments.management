@@ -1,6 +1,13 @@
 
 PODMAN_MAJOR=$(podman --version | awk '{ split($3,a,"."); print a[1]; }')
 
+if [ -n "$dnsserver" ]
+then
+  DNSSERVER="server $dnsserver"
+else
+  DNSSERVER=""
+fi
+
 function add_CNAME () {
     pod=$1
     if [ $PODMAN_MAJOR -ge 3  ]
@@ -15,7 +22,7 @@ function add_CNAME () {
     hostSystem=$(hostname)
     echo "$(date): Adding DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
-server $dnsserver
+$DNSSERVER
 prereq yxdomain $infraIDHostName
 update add $podHostName 150 A $infraIPAddress
 update add $pod.host.nti 150 CNAME $hostSystem
@@ -36,7 +43,7 @@ function remove_CNAME (){
     infraIDHostName=$infraID.nti
     echo "$(date): Removing DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
-server $dnsserver
+$DNSSERVER
 prereq yxdomain $podHostName
 update delete $podHostName
 send
@@ -55,7 +62,7 @@ function add_SRV_record () {
     podHostName=$pod.nti
     echo "$(date): Adding SRV record for $host"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
-server $dnsserver
+$DNSSERVER
 prereq yxdomain $podHostName
 update add $host 60 SRV 10 100 $port $podHostName
 send
@@ -70,7 +77,7 @@ function remove_SRV_record (){
     podHostName=$pod.nti
     echo "$(date): Removing SRV record for $host"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
-server $dnsserver
+$DNSSERVER
 prereq yxdomain $host 60 SRV 10 100 $port $podHostName
 update delete $host 60 SRV 10 100 $port $podHostName
 send
