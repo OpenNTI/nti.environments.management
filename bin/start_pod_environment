@@ -156,8 +156,11 @@ then
     echo "$(date): $pod-dataserver container running" 1>&2
     systemctl enable "nti-dataserver-logrotate@$pod.timer" 1>&2
     systemctl start "nti-dataserver-logrotate@$pod.timer" 1>&2
-    systemctl enable "nti-notable-digest@$pod.timer" 1>&2
-    systemctl start "nti-notable-digest@$pod.timer" 1>&2
+    if [ "$node_digest" != "false" ]
+    then
+      systemctl enable "nti-notable-digest@$pod.timer" 1>&2
+      systemctl start "nti-notable-digest@$pod.timer" 1>&2
+    fi
     systemctl enable "nti-process-bounce-queue@$pod.timer" 1>&2
     systemctl start "nti-process-bounce-queue@$pod.timer" 1>&2
     systemctl enable "nti-refresh-auth-token@$pod.timer" 1>&2
