@@ -18,7 +18,7 @@ function add_CNAME () {
     fi
     podHostName=$pod.nti
     infraIDHostName=$infraID.nti
-    infraIPAddress=$(nslookup $infraIDHostName | awk '$0 ~ /Name:/{getline;print $2}')
+    infraIPAddress=$(nslookup $infraIDHostName $dnsserver | awk '$0 ~ /Name:/{getline;print $2}')
     hostSystem=$(hostname)
     echo "$(date): Adding DNS records for $podHostName"
     nsupdate -k /etc/dhcp/ddns_keys << EOF
