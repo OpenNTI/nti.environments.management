@@ -1,0 +1,154 @@
+#!/bin/bash
+
+pod=$1
+
+# Load host specific environment variables
+if [ -e "/etc/nti/container_versions" ]
+then
+  source /etc/nti/container_versions
+fi
+
+if [ -n "$dnsserver" ]
+then
+  DNSSERVER="server $dnsserver"
+else
+  DNSSERVER=""
+fi
+
+PODMAN_MAJOR=$(podman --version | awk '{ split($3,a,"."); print a[1]; }')
+ACCOUNT=$(aws sts get-caller-identity | jq '.Account' | sed -e "s|\"||g")
+
+function start_service_pod () {
+    pod=$1
+    port=$2
+
+    podman pod exists $pod
+    ret=$?
+    if [ "$ret" -eq 1 ]
+    then
+        echo "$(date): Creating $pod pod" 1>&2
+        if [ $PODMAN_MAJOR -ge 3  ]
+        then
+            podman pod create --publish $port --name $pod --hostname $pod.nti 1>&2
+        else
+            podman pod create --publish $port --name $pod --hostname $pod.nti 1>&2
+        fi
+        ret=$?
+        if [ $ret -eq 0 ]
+        then
+            podman pod start $pod 1>&2
+            ret=$?
+            if [ $ret -eq 1 ]
+            then
+                echo "$(date): ABORT! Failed to start pod $pod." 1>&2
+                return 15
+            fi
+        else
+            echo "$(date): ABORT! Failed to create pod $pod." 1>&2
+            return 14
+        fi
+    fi
+}
+
+function add_SRV_record () {
+    host=$1
+    port=$2
+    podHostName=$3
+    echo "$(date): Adding SRV record for $host" 1>&2
+    nsupdate -k /etc/dhcp/ddns_keys << EOF
+$DNSSERVER
+prereq yxdomain $podHostName
+update add $host 60 SRV 10 100 $port $podHostName
+send
+quit
+EOF
+}
+
+function start_webservice () {
+    pod=$1
+    configroot=$2
+    logroot=$3
+    service_name=$4
+    port=$5
+
+    podman container exists $pod-web-service
+    ret=$?
+    if [ "$ret" -eq 1 ]
+    then
+        if [ -e "$configroot/overrides/webservice" ]
+        then
+            podman run --pod=$pod --volume $configroot/overrides/webservice:/opt/nextthought/overrides:rw --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+        else
+            podman run --pod=$pod --volume $logroot:/var/log:rw --name $pod-web-service --detach --rm docker://$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/platform/web-service:$webservice 1>&2
+        fi
+        ret=$?
+            if [ $ret -eq 0 ]
+            then
+                mapped_port=$(podman pod inspect $pod | jq -r '.InfraConfig.PortBindings."'"$port"'/tcp"[0].HostPort')
+                add_SRV_record "$service_name" "$mapped_port" "$(hostname)"  1>&2
+            fi 
+
+    fi
+    return $ret
+}
+
+parts=$(echo "$pod" | awk '{ n=split($0,a,"-");} END {print n;}')
+environment=$(echo "$pod" | awk '{ split($0,a,"-"); print a[1];}')
+if [ "$parts" -ge 3 ]
+then
+    service=$(echo "$pod" | awk '{ split($0,a,"-"); print a[2];}')
+fi
+if [ "$parts" -ge 4 ]
+then
+    subservice=$(echo "$pod" | awk '{ split($0,a,"-"); print a[3];}')
+fi
+
+if [ -n "$subservice" ]
+then
+    service_name=_"$subservice"_"$service"._tcp."$environment".nti
+elif [ -n "$service" ]
+then
+    service_name=_"$service"._tcp."$environment".nti
+else
+    service_name=""
+fi
+
+configroot=$configbase/$environment
+logroot=$logbase/$pod.nti
+
+# Load environment specific environment variables
+if [ -e "$configroot/environment" ]
+then
+  source $configroot/environment
+fi
+# Load service specific environment variables
+if [ -e "$configroot/$service/environment" ]
+then
+  source $configroot/$service/environment
+fi
+# Load subservice specific environment variables
+if [ -e "$configroot/$service/$subservice/environment" ]
+then
+  source $configroot/$service/$subservice/environment
+fi
+
+
+if [ ! -e "$logroot" ]
+then
+    mkdir -p "$logroot"
+    chmod 1777 "$logroot"
+    chcon -R  system_u:object_r:container_file_t:s0 "$logroot"
+fi
+
+
+case "$service" in
+    web | webservice)
+        port=8083
+        start_service_pod $pod $port
+        start_webservice $pod $configroot $logroot $service_name $port
+        ;;
+    dataserver)
+        ;;
+    *)
+        echo "$service"
+esac

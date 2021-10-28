@@ -1,0 +1,75 @@
+#!/bin/bash
+
+pod=$1
+
+# Load host specific environment variables
+if [ -e "/etc/nti/container_versions" ]
+then
+  source /etc/nti/container_versions
+fi
+
+if [ -n "$dnsserver" ]
+then
+  DNSSERVER="server $dnsserver"
+else
+  DNSSERVER=""
+fi
+
+function remove_SRV_record () {
+    host=$1
+    port=$2
+    podHostName=$3
+    echo "$(date): Removing SRV record for $host" 1>&2
+    nsupdate -k /etc/dhcp/ddns_keys << EOF
+$DNSSERVER
+prereq yxdomain $host 60 SRV 10 100 $port $podHostName
+update delete $host 60 SRV 10 100 $port $podHostName
+send
+quit
+EOF
+}
+
+function stop_webservice () {
+    pod=$1
+    service_name=$2
+    port=$3
+
+    podman container exists $pod-web-service
+    ret=$?
+    if [ "$ret" -eq 0 ]
+    then
+        mapped_port=$(podman pod inspect $pod | jq -r '.InfraConfig.PortBindings."'"$port"'/tcp"[0].HostPort')
+        remove_SRV_record "$service_name" "$mapped_port" "$(hostname)" 1>&2
+        podman stop $pod-web-service 1>&2
+    fi
+}
+
+parts=$(echo "$pod" | awk '{ n=split($0,a,"-");} END {print n;}')
+environment=$(echo "$pod" | awk '{ split($0,a,"-"); print a[1];}')
+if [ "$parts" -ge 3 ]
+then
+    service=$(echo "$pod" | awk '{ split($0,a,"-"); print a[2];}')
+fi
+if [ "$parts" -ge 4 ]
+then
+    subservice=$(echo "$pod" | awk '{ split($0,a,"-"); print a[3];}')
+fi
+
+if [ -n "$subservice" ]
+then
+    service_name=_"$subservice"_"$service"._tcp."$environment".nti
+elif [ -n "$service" ]
+then
+    service_name=_"$service"._tcp."$environment".nti
+else
+    service_name=""
+fi
+
+case "$service" in
+    web | webservice)
+        port=8083
+        stop_webservice $pod $service_name $port
+        ;;
+    dataserver)
+        ;;
+esac
