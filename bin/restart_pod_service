@@ -1,0 +1,6 @@
+#!/bin/bash
+
+pod=$1
+
+containerstop $pod 1>&2
+containerstart $pod 1>&2
