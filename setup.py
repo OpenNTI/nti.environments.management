@@ -19,7 +19,7 @@ requires = [
     'zope.security',
     'dnspython',
     'requests',
-    'nti.tools.aws @ git+ssh://git@github.com/NextThought/nti.tools.aws',
+    'nti.tools.aws @ git+ssh://git@github.com/OpenNTI/nti.tools.aws',
     'perfmetrics'
 ]
 
@@ -37,6 +37,7 @@ setup(
     description='NTI Environments Management',
     long_description=README + '\n\n' + CHANGES,
     classifiers=[
+        'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
         'Framework :: Pyramid',
         'Topic :: Internet :: WWW/HTTP',
